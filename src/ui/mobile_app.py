@@ -35,7 +35,9 @@ KV = '''
         height: '30dp'
 
     Label:
-        text: 'FEN:\n' + (root.fen or '')
+        text: 'FEN:\\n' + (root.fen or '')
+        size_hint_y: None
+        height: '80dp'
         halign: 'left'
         valign: 'top'
         text_size: self.width, None
