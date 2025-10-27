@@ -1,0 +1,8 @@
+python-chess
+opencv-python
+pytesseract
+stockfish
+pyautogui
+kivy
+# Note: On Android you will usually build with Buildozer/Briefcase and may need platform-specific
+# packages. Keep this file for desktop/dev environment; for Android see README (mobile packaging).
