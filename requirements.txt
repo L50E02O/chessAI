@@ -4,5 +4,12 @@ pytesseract
 stockfish
 pyautogui
 kivy
+# Desktop capture + cloud
+supabase
+python-dotenv
+pynput
+mss
+pillow
+numpy
 # Note: On Android you will usually build with Buildozer/Briefcase and may need platform-specific
 # packages. Keep this file for desktop/dev environment; for Android see README (mobile packaging).
