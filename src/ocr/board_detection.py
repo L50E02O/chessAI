@@ -1,7 +1,7 @@
 """
 OCR/board detection stub.
 In a full implementation this module would use OpenCV to detect the board, segment squares
-and use pytesseract or a CNN to identify pieces. For mobile (Kivy+Android) you may want to
+and use pytesseract or a CNN to identify pieces.
 run detection on-device with a lightweight model or call a backend.
 
 This stub attempts to import OpenCV/pytesseract and falls back to a mock FEN.
@@ -19,7 +19,7 @@ def detect_board_from_image(image_path: str) -> str:
         import cv2
         import pytesseract
     except Exception as e:
-        # Not available – return mock FEN so the mobile skeleton stays usable.
+    # Not available – return mock FEN.
         print('OpenCV/Tesseract not available, returning mock FEN:', e)
         return MOCK_FEN
 

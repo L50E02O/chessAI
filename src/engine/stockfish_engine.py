@@ -1,5 +1,5 @@
 """Engine wrapper. Tries to use python-stockfish or the bundled binary; falls back to a mock.
-Keep this module as the single contract point so it can be adapted for mobile-native engines later.
+Keep this module as the single contract point.
 
 Contract (small):
 - get_best_move_for_fen(fen: str, depth: int=15) -> str | None
