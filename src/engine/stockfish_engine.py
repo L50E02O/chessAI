@@ -51,14 +51,9 @@ def _try_cli_stockfish(fen: str, depth: int = 15):
 
 def get_best_move_for_fen(fen: str, depth: int = 15) -> str:
     """Return best move string like 'e2e4' or algebraic like 'Nf3'. Could be None if not found."""
-    # Try python-stockfish package
-    ans = _try_python_stockfish(fen, depth)
-    if ans:
-        return ans
-    # Try bundled CLI
+    # Usar solo el método CLI
     ans = _try_cli_stockfish(fen, depth)
     if ans:
         return ans
-    # Fallback: simple mock
-    print('Stockfish not available, returning mock move Nf3')
+    print('Stockfish no disponible o error en CLI, devolviendo jugada mock Nf3')
     return 'Nf3'
