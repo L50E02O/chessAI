@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from pynput import keyboard
 from src.desktop_capture import handle_capture_and_upload
 from src.utils.helpers import short_log
