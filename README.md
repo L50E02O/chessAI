@@ -1,74 +1,150 @@
-# ♟️ ChessVision-AI (modo escritorio con atajo y Supabase)
+# ♟️ ChessVision-AI + Google Gemini + Stockfish
 
-Ahora el flujo principal funciona en Windows con un atajo global de teclado: presiona Ctrl+X para capturar la pantalla, detectar y recortar automáticamente el tablero de ajedrez, subir la imagen recortada a Supabase Storage y mantener un histórico en forma de pila limitado a 10 imágenes (se eliminan las más antiguas).
+Sistema inteligente de análisis de partidas de ajedrez que usa **Google Gemini Vision API** para extraer posiciones FEN desde capturas de pantalla y **Stockfish** para sugerir las mejores jugadas.
 
 ---
 
 ## ✨ ¿Qué hace?
 
-- Escucha el atajo global Ctrl+X.
-- Captura la pantalla completa.
-- Detecta el tablero (OpenCV) y recorta a un cuadrado del tablero; si no lo encuentra, hace un recorte central como respaldo.
-- Sube la imagen a Supabase Storage y devuelve una URL firmada de acceso temporal.
-- Mantiene solo las últimas 10 imágenes en el bucket (las antiguas se eliminan automáticamente).
-
-> Nota: La parte móvil con Kivy quedó deshabilitada como flujo principal. Los archivos siguen en `src/ui/` y `src/main_kivy.py`, pero el punto de entrada por defecto ahora es `src/main.py`.
+1. **Captura**: Presiona `Ctrl+A` para capturar la pantalla completa
+2. **Análisis con IA**: Envía la imagen a Google Gemini Vision para extraer el FEN automáticamente
+3. **Fallback inteligente**: Si Gemini falla, usa detección de tablero con OpenCV como respaldo
+4. **Motor de ajedrez**: Analiza la posición con Stockfish y sugiere la mejor jugada
+5. **Historial en Supabase**: (Opcional) Mantiene un histórico de capturas en Supabase Storage
 
 ---
 
-## 🧭 Estructura relevante
+## 🚀 Novedades
 
-```text
-src/
-	main.py                    # Punto de entrada con el atajo Ctrl+X
-	desktop_capture.py         # Captura, detección/corte de tablero y subida a Supabase
-	ocr/
-		board_detection.py       # (stub antiguo) – ahora usamos una detección CV simple en desktop_capture
-	engine/
-		stockfish_engine.py      # (sin cambios en este flujo)
-	utils/
-		supabase_client.py       # Inicializa cliente Supabase desde .env
-		config.py, helpers.py
-captures/                    # Carpeta local temporal de capturas (se crea al vuelo)
+### 🤖 Integración con Google Gemini
+- Usa el modelo `gemini-1.5-flash` para análisis visual del tablero
+- Extrae automáticamente el FEN sin necesidad de detección de bordes tradicional
+- Funciona con tableros en cualquier perspectiva (blancas o negras abajo)
+- Reintentos automáticos en caso de error
+
+### ⚡ Flujo completo
+```
+Captura de pantalla → Gemini Vision → FEN → Stockfish → Mejor jugada
 ```
 
 ---
 
-## 🔑 Configuración de entorno (.env)
+## 🧭 Estructura del proyecto
 
-Crea un archivo `.env` en la raíz del proyecto con:
+```text
+src/
+	main.py                    # Punto de entrada con atajo Ctrl+A
+	desktop_capture.py         # Captura de pantalla full
+	ocr/
+		gemini_vision.py         # ⭐ NUEVO: Integración con Google Gemini
+		board_detection.py       # Método tradicional (fallback)
+		fen_generator.py
+	engine/
+		stockfish_engine.py      # Análisis con motor Stockfish
+	utils/
+		supabase_client.py       # Cliente Supabase (opcional)
+		config.py                # Configuración y API keys
+		helpers.py
+```
+
+---
+
+## 🔑 Configuración
+
+### 1. Crea el archivo `.env`
+
+Copia `.env.example` a `.env` y configura tus credenciales:
+
+```bat
+copy .env.example .env
+```
+
+Edita `.env` y agrega tu API key de Google Gemini:
 
 ```ini
+# Google Gemini API Key (OBLIGATORIO)
+GEMINI_API_KEY=tu_api_key_aqui
+
+# Supabase (opcional, para historial de capturas)
 SUPABASE_URL=tu_url_de_supabase
 SUPABASE_ANON_KEY=tu_anon_key
 SUPABASE_BUCKET=boards
 ```
 
-- Asegúrate de crear el bucket en Supabase Storage (por ejemplo `boards`). Puede ser público o se pueden usar URLs firmadas (este proyecto usa URLs firmadas de 24h).
+### 2. Obtén tu API Key de Google Gemini
+
+1. Ve a [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Inicia sesión con tu cuenta de Google
+3. Haz clic en "Create API Key"
+4. Copia la clave y pégala en tu archivo `.env`
+
+### 3. Configura Stockfish (si no lo has hecho)
+
+Edita `src/utils/config.py` y actualiza la ruta a tu ejecutable de Stockfish:
+
+```python
+STOCKFISH_PATH = r"C:\ruta\a\tu\stockfish.exe"
+```
+
+Puedes descargar Stockfish desde: https://stockfishchess.org/download/
 
 ---
 
 ## 🛠 Instalación
 
+### Requisitos
+- Python 3.8+
+- pip
+- Stockfish instalado en tu sistema
+
+### Instalar dependencias
+
 ```bat
 pip install -r requirements.txt
 ```
 
-En Windows, puede que `pynput` pida permisos para escuchar teclas globales. Ejecutar la terminal con permisos suficientes ayuda en algunos entornos.
+**Nota Windows**: `pynput` puede requerir permisos de administrador para escuchar atajos globales. Ejecuta la terminal como administrador si tienes problemas.
 
 ---
 
-## ▶️ Ejecutar
+## ▶️ Uso
+
+### 1. Inicia la aplicación
 
 ```bat
 python src\main.py
 ```
 
-- Verás en consola: “Escuchando atajo Ctrl+X. Presiona ESC para salir.”
-- Abre tu sitio de ajedrez (Chess.com, Lichess, etc.), coloca el tablero visible y presiona Ctrl+X.
-- El programa intentará detectar y recortar el tablero, subirá la imagen a Supabase y te mostrará una URL firmada.
+Verás en consola:
+```
+🚀 ChessAI iniciado
+⌨️ Escuchando atajo <ctrl>+a. Presiona ESC o Ctrl+C para salir.
+```
 
-Las capturas locales se guardan en `captures/` con nombres `board_YYYYMMDD_HHMMSS.png`.
+### 2. Analiza una partida
+
+1. Abre tu sitio de ajedrez favorito (Chess.com, Lichess, etc.)
+2. Asegúrate de que el tablero esté visible en pantalla
+3. Presiona `Ctrl+A`
+4. Espera unos segundos mientras:
+   - 📸 Se captura la pantalla
+   - 🤖 Gemini analiza la imagen
+   - ♟️ Se extrae el FEN
+   - 🧠 Stockfish calcula la mejor jugada
+
+### 3. Ejemplo de salida
+
+```
+============================================================
+🎯 Capturando pantalla...
+✅ Captura completada: (1920, 1080, 3)
+🤖 Enviando imagen a Google Gemini para análisis...
+✅ FEN extraído por Gemini: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1
+♟️ FEN detectado: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1
+🧠 Analizando posición con Stockfish...
+✨ Mejor jugada sugerida: e7e5
+============================================================
+```
 
 ---
 
@@ -94,19 +170,71 @@ Tras cada subida, se listan los objetos en `SUPABASE_BUCKET/prefix` (por defecto
 
 ---
 
-## 🚧 Qué no hace aún
+## � Configuración avanzada
 
-- No descarga automáticamente la última imagen desde Supabase; el flujo devuelve una URL firmada para acceso directo.
-- No integra (todavía) la evaluación con Stockfish a partir de esa imagen; esto puede añadirse como siguiente paso.
+### Cambiar el atajo de teclado
+
+Edita `src/main.py` y modifica la variable `HOTKEY`:
+
+```python
+HOTKEY = '<ctrl>+a'  # Cambia a '<ctrl>+<shift>+c' u otro atajo
+```
+
+### Ajustar profundidad de análisis de Stockfish
+
+En `src/engine/stockfish_engine.py`, ajusta el parámetro `depth`:
+
+```python
+def get_best_move_for_fen(fen: str, depth: int = 20):  # Aumenta para análisis más profundo
+```
+
+### Usar Supabase para historial (opcional)
+
+Si configuras las variables de Supabase en `.env`, las capturas se subirán automáticamente y se mantendrá un histórico de las últimas 10 imágenes.
 
 ---
 
-## ✅ Siguientes pasos sugeridos
+## 🐛 Solución de problemas
 
-1. Añadir descarga de la última imagen desde Supabase para reenviar el recorte a módulos OCR/FEN.
-2. Integrar `python-chess` + `stockfish_engine.py` para completar el pipeline hasta “mejor jugada”.
-3. Permitir definir región de pantalla o multi-monitor.
-4. Ajustar el atajo por variable de entorno (por ejemplo `HOTKEY=ctrl+x`).
+### "GEMINI_API_KEY no configurado"
+- Asegúrate de tener un archivo `.env` en la raíz del proyecto
+- Verifica que la API key esté correctamente copiada (sin espacios)
+
+### "No se pudo obtener una jugada de Stockfish"
+- Verifica que la ruta en `config.py` apunte al ejecutable correcto
+- Prueba ejecutar Stockfish manualmente: `stockfish.exe`
+
+### El atajo no funciona
+- Ejecuta la terminal como administrador
+- Verifica que no haya otro programa usando el mismo atajo
+
+### Gemini devuelve un FEN incorrecto
+- Asegúrate de que el tablero sea claramente visible
+- Evita capturas con elementos superpuestos
+- El sistema usará el método tradicional como fallback
+
+---
+
+## 📊 Limitaciones y costos
+
+### Google Gemini API
+- **Gratis**: 15 solicitudes por minuto con `gemini-1.5-flash`
+- **Costo**: Después del límite gratuito, revisa los [precios de Gemini](https://ai.google.dev/pricing)
+
+### Stockfish
+- Completamente gratuito y open source
+- No requiere conexión a internet
+
+---
+
+## ✅ Roadmap
+
+- [ ] Interfaz gráfica con historial de análisis
+- [ ] Soporte para múltiples motores de ajedrez
+- [ ] Análisis de variantes y líneas principales
+- [ ] Exportar partidas a PGN
+- [ ] Detección automática del lado del tablero
+- [ ] Modo streaming para análisis en tiempo real
 
 ---
 
