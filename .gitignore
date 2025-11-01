@@ -37,14 +37,6 @@ htmlcov/
 *.mo
 *.pot
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask instance folder
-instance/
 
 # Scrapy stuff
 .scrapy
@@ -80,13 +72,6 @@ env.bak/
 # VS Code
 .vscode/
 
-# JetBrains
-.idea/
-*.iml
-
-# macOS
-.DS_Store
-
 # Windows
 Thumbs.db
 ehthumbs.db
@@ -103,26 +88,5 @@ ehthumbs.db
 *.pem
 *.key
 
-# Kivy / Buildozer / Android
-.buildozer/
-buildozer.spec
-/.gradle/
-/.idea/
-android/*
-*.aar
-*.apk
-*.ap_)
-*.apks
-*.aab
-bin/
-obj/
-
-# Android studio / gradle
-/.gradle/
-/.idea/
-local.properties
-
-# Kivy compiled files
-*.pyc
-.env/
-venv/
+# json files
+*.json

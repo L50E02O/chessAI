@@ -12,27 +12,58 @@ from src.utils.config import STOCKFISH_PATH
 
 
 def _try_python_stockfish(fen: str, depth: int = 15):
+    sf = None
     try:
         from stockfish import Stockfish
         sf = Stockfish(path=STOCKFISH_PATH if os.path.exists(STOCKFISH_PATH) else None)
         sf.set_fen_position(fen)
+        sf.set_depth(depth)
         best = sf.get_best_move()
         return best
     except Exception as e:
-        # not available or failed
+        print(f"Error en python-stockfish: {str(e)}")
         return None
+    finally:
+        # Clean up stockfish instance
+        if sf:
+            try:
+                del sf
+            except:
+                pass
 
 
 def _try_cli_stockfish(fen: str, depth: int = 15):
     if not os.path.exists(STOCKFISH_PATH):
         return None
+    
+    p = None
     try:
         # Use simple UCI commands
-        p = subprocess.Popen([STOCKFISH_PATH], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        p = subprocess.Popen(
+            [STOCKFISH_PATH], 
+            stdin=subprocess.PIPE, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True
+        )
+        
+        # Send UCI commands
         p.stdin.write('uci\n')
+        p.stdin.flush()
+        
+        # Wait for uciok
+        while True:
+            line = p.stdout.readline()
+            if not line:
+                break
+            if 'uciok' in line:
+                break
+        
+        # Set position and calculate
         p.stdin.write(f'position fen {fen}\n')
         p.stdin.write(f'go depth {depth}\n')
         p.stdin.flush()
+        
         best_move = None
         while True:
             line = p.stdout.readline()
@@ -43,10 +74,29 @@ def _try_cli_stockfish(fen: str, depth: int = 15):
                 if len(parts) >= 2:
                     best_move = parts[1]
                 break
-        p.kill()
+        
+        # Properly quit stockfish
+        try:
+            p.stdin.write('quit\n')
+            p.stdin.flush()
+            p.wait(timeout=2)
+        except:
+            pass
+        
         return best_move
-    except Exception:
+        
+    except Exception as e:
+        print(f"Error en Stockfish CLI: {str(e)}")
         return None
+    
+    finally:
+        # Ensure process is terminated
+        if p and p.poll() is None:
+            try:
+                p.kill()
+                p.wait(timeout=1)
+            except:
+                pass
 
 
 def get_best_move_for_fen(fen: str, depth: int = 15) -> str:
