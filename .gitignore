@@ -37,6 +37,10 @@ htmlcov/
 *.mo
 *.pot
 
+# ChessAI specific
+board_region.json
+captures/
+*.png
 
 # Scrapy stuff
 .scrapy

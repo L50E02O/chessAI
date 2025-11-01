@@ -32,7 +32,7 @@ def _try_python_stockfish(fen: str, depth: int = 15):
                 pass
 
 
-def _try_cli_stockfish(fen: str, depth: int = 15):
+def _try_cli_stockfish(fen: str, depth: int = 10):
     if not os.path.exists(STOCKFISH_PATH):
         return None
     
@@ -51,21 +51,24 @@ def _try_cli_stockfish(fen: str, depth: int = 15):
         p.stdin.write('uci\n')
         p.stdin.flush()
         
-        # Wait for uciok
-        while True:
+        # Wait for uciok with timeout
+        import time
+        start = time.time()
+        while time.time() - start < 2:
             line = p.stdout.readline()
             if not line:
                 break
             if 'uciok' in line:
                 break
         
-        # Set position and calculate
+        # Set position and calculate with movetime limit (1 second)
         p.stdin.write(f'position fen {fen}\n')
-        p.stdin.write(f'go depth {depth}\n')
+        p.stdin.write(f'go depth {depth} movetime 2000\n')  # Max 2 segundos
         p.stdin.flush()
         
         best_move = None
-        while True:
+        start = time.time()
+        while time.time() - start < 5:  # Timeout de 5 segundos total
             line = p.stdout.readline()
             if not line:
                 break
@@ -79,7 +82,7 @@ def _try_cli_stockfish(fen: str, depth: int = 15):
         try:
             p.stdin.write('quit\n')
             p.stdin.flush()
-            p.wait(timeout=2)
+            p.wait(timeout=1)
         except:
             pass
         
@@ -99,7 +102,7 @@ def _try_cli_stockfish(fen: str, depth: int = 15):
                 pass
 
 
-def get_best_move_for_fen(fen: str, depth: int = 15) -> str:
+def get_best_move_for_fen(fen: str, depth: int = 10) -> str:
     """Return best move string like 'e2e4' or algebraic like 'Nf3'. Could be None if not found."""
     # Usar solo el método CLI
     ans = _try_cli_stockfish(fen, depth)

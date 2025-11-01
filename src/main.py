@@ -38,7 +38,7 @@ def process_capture():
         
         # 2. Intentar extraer FEN con Gemini Vision
         short_log('🤖 Enviando imagen a Google Gemini para análisis...')
-        fen = extract_fen_with_retry(image_array=img, max_retries=2)
+        fen = extract_fen_with_retry(image_array=img, max_retries=1)  # Reducido a 1 reintento
         
         # 3. Si Gemini falla, usar el método tradicional de detección
         if not fen or '/' not in fen:
@@ -93,9 +93,14 @@ def main():
     
     short_log('=' * 60)
     
+    # Variable para controlar el loop
+    running = True
+    
     def on_press(key):
+        nonlocal running
         if key == keyboard.Key.esc:
             short_log('👋 Saliendo...')
+            running = False
             return False
     
     # Crear el listener de ESC
@@ -103,11 +108,17 @@ def main():
     listener.start()
     
     # Crear el hotkey handler
-    with keyboard.GlobalHotKeys({HOTKEY: on_activate}) as h:
-        h.join()
-    
-    # Detener el listener al salir
-    listener.stop()
+    try:
+        with keyboard.GlobalHotKeys({HOTKEY: on_activate}) as h:
+            while running and listener.is_alive():
+                # Sleep corto para permitir que ESC se procese
+                import time
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        short_log('👋 Interrumpido por usuario')
+    finally:
+        # Detener el listener al salir
+        listener.stop()
 
 if __name__ == '__main__':
     main()
