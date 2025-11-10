@@ -11,160 +11,160 @@
 
 </div>
 
-> **ChessVision AI** combina la visión artificial de **Google Gemini 2.5** con la potencia del motor **Stockfish** para analizar posiciones de ajedrez en tiempo real desde tu pantalla.  
-> Captura, analiza y obtén la mejor jugada con un solo atajo de teclado.
+> **ChessVision AI** combines the artificial vision of **Google Gemini 2.5** with the power of the **Stockfish** engine to analyze chess positions in real-time from your screen.  
+> Capture, analyze and get the best move with a single keyboard shortcut.
 
 ---
 
-## 📚 Tabla de Contenidos
-- [🚀 Descripción General](#-descripción-general)
-- [✨ Características](#-características)
-- [🧠 Cómo Funciona](#-cómo-funciona)
-- [🛠 Instalación](#-instalación)
-- [⚙️ Configuración](#️-configuración)
-- [🎮 Uso](#-uso)
-- [🏗 Arquitectura](#-arquitectura)
-- [🐛 Solución de Problemas](#-solución-de-problemas)
+## 📚 Table of Contents
+- [🚀 Overview](#-overview)
+- [✨ Features](#-features)
+- [🧠 How It Works](#-how-it-works)
+- [🛠 Installation](#-installation)
+- [⚙️ Configuration](#️-configuration)
+- [🎮 Usage](#-usage)
+- [🏗 Architecture](#-architecture)
+- [🐛 Troubleshooting](#-troubleshooting)
 - [🗺 Roadmap](#-roadmap)
-- [🤝 Contribuir](#-contribuir)
-- [📄 Licencia](#-licencia)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
 
 ---
 
-## 🚀 Descripción General
+## 🚀 Overview
 
-**ChessVision AI** es una aplicación de escritorio que te permite analizar posiciones de ajedrez directamente desde cualquier tablero visible en tu pantalla.  
-Solo presiona **Ctrl + Q** y la IA:
-1. Captura la pantalla
-2. Detecta el tablero
-3. Extrae la posición (FEN)
-4. Analiza con **Stockfish**
-5. Muestra la mejor jugada 💡
+**ChessVision AI** is a desktop application that allows you to analyze chess positions directly from any board visible on your screen.  
+Just press **Ctrl + Q** and the AI will:
+1. Capture the screen
+2. Detect the board
+3. Extract the position (FEN)
+4. Analyze with **Stockfish**
+5. Show the best move 💡
 
-Perfecto para:
-- 🎓 Estudiar aperturas y mejorar tu nivel
-- 🔍 Analizar partidas online en tiempo real
-- ⚡ Obtener sugerencias instantáneas
-- 🎯 Compatible con Chess.com, Lichess y más
+Perfect for:
+- 🎓 Studying openings and improving your level
+- 🔍 Analyzing online games in real-time
+- ⚡ Getting instant suggestions
+- 🎯 Compatible with Chess.com, Lichess and more
 
 ---
 
-## ✨ Características Principales
+## ✨ Main Features
 
-| Tipo | Descripción |
+| Type | Description |
 |------|--------------|
-| 🖼️ **Reconocimiento Inteligente** | Detecta automáticamente el tablero y las piezas desde capturas de pantalla. |
-| 🤖 **Visión por IA** | Utiliza **Google Gemini 2.5 Flash** para reconocer la posición con precisión. |
-| 🧠 **Motor Stockfish** | Análisis profesional con profundidad configurable. |
-| ⚡ **Rendimiento en Tiempo Real** | Resultados en solo segundos. |
-| ⌨️ **Atajo Global (`Ctrl+Q`)** | Captura inmediata desde cualquier ventana. |
-| 🔄 **Fallback OpenCV** | Usa visión clásica si la IA falla. |
-| 🆓 **Gratis** | Compatible con el plan gratuito de la API de Google Gemini. |
+| 🖼️ **Smart Recognition** | Automatically detects the board and pieces from screenshots. |
+| 🤖 **AI Vision** | Uses **Google Gemini 2.5 Flash** to recognize positions accurately. |
+| 🧠 **Stockfish Engine** | Professional analysis with configurable depth. |
+| ⚡ **Real-time Performance** | Results in just seconds. |
+| ⌨️ **Global Shortcut (`Ctrl+Q`)** | Instant capture from any window. |
+| 🔄 **OpenCV Fallback** | Uses classical vision if AI fails. |
+| 🆓 **Free** | Compatible with Google Gemini API free plan. |
 
 ---
 
-## 🛠 Instalación
+## 🛠 Installation
 
-### 🔧 Requisitos
-- **Python** 3.8 o superior  
-- **Windows 10/11** (soporte principal)  
-- **Conexión a Internet** (para la API de Google Gemini)  
-- **Stockfish** instalado en tu sistema  
+### 🔧 Requirements
+- **Python** 3.8 or higher  
+- **Windows 10/11** (main support)  
+- **Internet Connection** (for Google Gemini API)  
+- **Stockfish** installed on your system  
 
-### 1️⃣ Clonar el repositorio
+### 1️⃣ Clone the repository
 ```bash
 git clone https://github.com/L50E02O/chessAI.git
 cd chessAI
 ```
 
-### 2️⃣ Instalar dependencias
+### 2️⃣ Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Obtener tu API Key de Gemini
-1. Ve a [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Inicia sesión con tu cuenta de Google
-3. Crea una nueva API key
-4. Copia la clave
+### 3️⃣ Get your Gemini API Key
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Sign in with your Google account
+3. Create a new API key
+4. Copy the key
 
-### 4️⃣ Configurar el entorno
-Copia el archivo de ejemplo y agrega tu clave:
+### 4️⃣ Configure the environment
+Copy the example file and add your key:
 ```bash
 copy .env.example .env
 ```
-Edita `.env`:
+Edit `.env`:
 ```ini
-GEMINI_API_KEY=tu_api_key_aqui
+GEMINI_API_KEY=your_api_key_here
 ```
 
-### 5️⃣ Configurar Stockfish
-Edita la ruta del ejecutable en:
+### 5️⃣ Configure Stockfish
+Edit the executable path in:
 ```python
 # src/utils/config.py
-STOCKFISH_PATH = r"C:\ruta\a\stockfish.exe"
+STOCKFISH_PATH = r"C:\path\to\stockfish.exe"
 ```
 
 ---
 
-## 🎮 Uso
+## 🎮 Usage
 
-Ejecuta la aplicación:
+Run the application:
 ```bash
 python src\main.py
 ```
 
-**Controles:**
-| Atajo | Acción |
+**Controls:**
+| Shortcut | Action |
 |--------|--------|
-| `Ctrl + Q` | Captura pantalla y analiza |
-| `ESC` | Salir de la aplicación |
+| `Ctrl + Q` | Capture screen and analyze |
+| `ESC` | Exit the application |
 
-Verás algo como:
+You'll see something like:
 ```
-🚀 ChessVision iniciado
-⌨️ Escuchando atajo <Ctrl+Q>...
+🚀 ChessVision started
+⌨️ Listening for shortcut <Ctrl+Q>...
 ```
 
 ---
 
-## ⚙️ Configuración Avanzada
+## ⚙️ Advanced Configuration
 
-Puedes modificar parámetros en `src/utils/config.py`:
+You can modify parameters in `src/utils/config.py`:
 
 ```python
-HOTKEY = '<ctrl>+q'   # Cambia el atajo
-DEPTH = 15             # Profundidad de Stockfish
+HOTKEY = '<ctrl>+q'   # Change the shortcut
+DEPTH = 15             # Stockfish depth
 ```
 
-### 🌐 Variables opcionales (Supabase)
+### 🌐 Optional variables (Supabase)
 ```ini
-SUPABASE_URL=tu_url
-SUPABASE_ANON_KEY=tu_key
+SUPABASE_URL=your_url
+SUPABASE_ANON_KEY=your_key
 SUPABASE_BUCKET=boards
 ```
 
-> 🧹 El sistema mantiene solo las últimas **10 capturas** en Supabase, eliminando las más antiguas automáticamente.
+> 🧹 The system keeps only the last **10 captures** in Supabase, automatically deleting older ones.
 
 ---
 
-## 🏗 Arquitectura del Proyecto
+## 🏗 Project Architecture
 
 ```
 chessAI/
 ├── src/
-│   ├── main.py                 # Punto de entrada
-│   ├── desktop_capture.py      # Captura de pantalla
+│   ├── main.py                 # Entry point
+│   ├── desktop_capture.py      # Screen capture
 │   ├── ocr/
-│   │   ├── gemini_vision.py    # Integración con Gemini Vision
-│   │   ├── board_detection.py  # Fallback OpenCV
-│   │   └── fen_generator.py    # Generador FEN
+│   │   ├── gemini_vision.py    # Gemini Vision integration
+│   │   ├── board_detection.py  # OpenCV fallback
+│   │   └── fen_generator.py    # FEN generator
 │   ├── engine/
-│   │   └── stockfish_engine.py # Comunicación con Stockfish
+│   │   └── stockfish_engine.py # Stockfish communication
 │   └── utils/
-│       ├── config.py           # Configuración general
-│       ├── helpers.py          # Funciones auxiliares
-│       └── supabase_client.py  # Cliente Supabase
+│       ├── config.py           # General configuration
+│       ├── helpers.py          # Helper functions
+│       └── supabase_client.py  # Supabase client
 ├── requirements.txt
 ├── .env.example
 ├── install.bat
@@ -174,62 +174,62 @@ chessAI/
 
 ---
 
-## 🐛 Solución de Problemas
+## 🐛 Troubleshooting
 
-| Error | Solución |
+| Error | Solution |
 |-------|-----------|
-| ❌ `GEMINI_API_KEY no configurado` | Verifica tu archivo `.env` y reinicia la app. |
-| ⚙️ `Stockfish no responde` | Asegúrate de tener la ruta correcta en `config.py`. |
-| ⌨️ `El atajo no funciona` | Ejecuta la terminal como administrador o cambia el atajo. |
-| ⚠️ `Gemini devuelve FEN incorrecto` | Asegúrate de que el tablero sea visible y sin ventanas encima. |
+| ❌ `GEMINI_API_KEY not configured` | Check your `.env` file and restart the app. |
+| ⚙️ `Stockfish not responding` | Make sure you have the correct path in `config.py`. |
+| ⌨️ `Shortcut not working` | Run the terminal as administrator or change the shortcut. |
+| ⚠️ `Gemini returns incorrect FEN` | Make sure the board is visible and no windows are on top. |
 
 ---
 
 ## 🗺 Roadmap
 
-### ✅ Versión actual (v1.0)
-- ✔️ Integración Gemini Vision + Stockfish  
-- ✔️ Detección OpenCV de respaldo  
-- ✔️ Multimonitor y atajo global  
+### ✅ Current version (v1.0)
+- ✔️ Gemini Vision + Stockfish integration  
+- ✔️ OpenCV fallback detection  
+- ✔️ Multi-monitor and global shortcut  
 
-### 🚧 En desarrollo (v1.1)
-- 📈 Validación avanzada de FEN  
-- 💾 Historial de análisis  
-- 🧩 GUI básica  
+### 🚧 In development (v1.1)
+- 📈 Advanced FEN validation  
+- 💾 Analysis history  
+- 🧩 Basic GUI  
 
-### 🔮 Futuro (v2.0+)
-- 📱 App móvil (Android/iOS)  
-- 💬 Integración con streamings (Twitch/YouTube)  
-- 🌍 Modo offline con caché  
+### 🔮 Future (v2.0+)
+- 📱 Mobile app (Android/iOS)  
+- 💬 Streaming integration (Twitch/YouTube)  
+- 🌍 Offline mode with cache  
 
 ---
 
-## 🤝 Contribuir
+## 🤝 Contributing
 
-¡Las contribuciones son bienvenidas! 💪  
-Puedes:
-- Reportar errores o sugerir mejoras  
-- Enviar PRs con nuevas funciones  
-- Mejorar la documentación  
+Contributions are welcome! 💪  
+You can:
+- Report bugs or suggest improvements  
+- Submit PRs with new features  
+- Improve documentation  
 
 ```bash
-git checkout -b feature/nueva-funcion
-git commit -m "Agregada nueva funcionalidad"
-git push origin feature/nueva-funcion
+git checkout -b feature/new-feature
+git commit -m "Added new functionality"
+git push origin feature/new-feature
 ```
 
 ---
 
-## 📄 Licencia
+## 📄 License
 
-Este proyecto está bajo la licencia **MIT**.  
-Consulta el archivo [LICENSE](LICENSE) para más detalles.
+This project is licensed under **MIT**.  
+See the [LICENSE](LICENSE) file for more details.
 
 ---
 
 <div align="center">
   
-**Hecho con ❤️ por [L50E02O](https://github.com/L50E02O)**  
-_Analiza. Aprende. Mejora tu ajedrez._ ♟️  
+**Made with ❤️ by [L50E02O](https://github.com/L50E02O)**  
+_Analyze. Learn. Improve your chess._ ♟️  
 
 </div>

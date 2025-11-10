@@ -1,5 +1,5 @@
 """
-Módulo para usar Google Gemini Vision API para extraer FEN de imágenes de tableros de ajedrez.
+Module to use Google Gemini Vision API to extract FEN from chess board images.
 """
 import google.generativeai as genai
 from PIL import Image
@@ -11,8 +11,8 @@ from src.utils.helpers import short_log
 
 def list_available_models() -> list:
     """
-    Lista todos los modelos disponibles en la API de Gemini.
-    Útil para debugging.
+    Lists all available models in the Gemini API.
+    Useful for debugging.
     """
     try:
         genai.configure(api_key=GEMINI_API_KEY)
@@ -23,38 +23,38 @@ def list_available_models() -> list:
                 available.append(model.name)
         return available
     except Exception as e:
-        short_log(f"❌ Error al listar modelos: {str(e)}")
+        short_log(f"❌ Error listing models: {str(e)}")
         return []
 
 
 def extract_fen_from_image(image_path: str = None, image_array: np.ndarray = None) -> Optional[str]:
     """
-    Envía una imagen a Google Gemini y solicita que identifique el FEN del tablero de ajedrez.
+    Sends an image to Google Gemini and requests it to identify the FEN of the chess board.
     
     Args:
-        image_path: Ruta a la imagen (opcional si se proporciona image_array)
-        image_array: Array numpy de la imagen RGB (opcional si se proporciona image_path)
+        image_path: Path to the image (optional if image_array is provided)
+        image_array: Numpy array of the RGB image (optional if image_path is provided)
     
     Returns:
-        String FEN si se detecta correctamente, None en caso de error
+        FEN string if detected correctly, None on error
     """
     if not GEMINI_API_KEY:
-        short_log("❌ Error: GEMINI_API_KEY no configurado en .env")
+        short_log("❌ Error: GEMINI_API_KEY not configured in .env")
         return None
     
     try:
-        # Configurar Gemini
+        # Configure Gemini
         genai.configure(api_key=GEMINI_API_KEY)
         
-        # Usar modelos compatibles con la API actual (Gemini 2.x)
-        # Intentar con diferentes modelos en orden de preferencia
+        # Use models compatible with current API (Gemini 2.x)
+        # Try different models in order of preference
         model_names = [
-            'models/gemini-2.5-flash',           # Rápido y eficiente
-            'models/gemini-2.0-flash',           # Alternativa rápida
-            'models/gemini-2.5-pro',             # Más potente
-            'models/gemini-flash-latest',        # Último flash
+            'models/gemini-2.5-flash',           # Fast and efficient
+            'models/gemini-2.0-flash',           # Fast alternative
+            'models/gemini-2.5-pro',             # More powerful
+            'models/gemini-flash-latest',        # Latest flash
             'models/gemini-2.0-flash-exp',       # Experimental
-            'models/gemini-pro-latest',          # Último pro
+            'models/gemini-pro-latest',          # Latest pro
         ]
         
         model = None
@@ -62,86 +62,86 @@ def extract_fen_from_image(image_path: str = None, image_array: np.ndarray = Non
         for model_name in model_names:
             try:
                 model = genai.GenerativeModel(model_name)
-                short_log(f"✅ Usando modelo: {model_name}")
+                short_log(f"✅ Using model: {model_name}")
                 break
             except Exception as e:
                 last_error = str(e)
                 continue
         
         if model is None:
-            short_log(f"❌ Error: No se pudo encontrar un modelo Gemini compatible")
-            short_log(f"   Último error: {last_error}")
-            # Intentar listar modelos disponibles
+            short_log(f"❌ Error: Could not find a compatible Gemini model")
+            short_log(f"   Last error: {last_error}")
+            # Try to list available models
             available = list_available_models()
             if available:
-                short_log(f"   Modelos disponibles: {', '.join(available[:3])}")
+                short_log(f"   Available models: {', '.join(available[:3])}")
             return None
         
-        # Cargar imagen
+        # Load image
         if image_array is not None:
-            # Convertir numpy array a PIL Image
+            # Convert numpy array to PIL Image
             img = Image.fromarray(image_array)
         elif image_path:
             img = Image.open(image_path)
         else:
-            short_log("❌ Error: Debe proporcionar image_path o image_array")
+            short_log("❌ Error: Must provide image_path or image_array")
             return None
         
-        short_log("🤖 Enviando imagen a Google Gemini para análisis...")
+        short_log("🤖 Sending image to Google Gemini for analysis...")
         
-        # Prompt específico para extraer FEN
-        prompt = """Analiza esta imagen y extrae la posición del tablero de ajedrez en formato FEN (Forsyth-Edwards Notation).
+        # Specific prompt to extract FEN
+        prompt = """Analyze this image and extract the chess board position in FEN (Forsyth-Edwards Notation) format.
 
-INSTRUCCIONES:
-1. Identifica todas las piezas en el tablero
-2. Determina de qué lado estás viendo el tablero (blancas abajo o negras abajo)
-3. Genera el string FEN siguiendo el formato estándar
-4. IMPORTANTE: Responde SOLO con el string FEN, sin explicaciones adicionales
-5. Si ves el tablero desde las negras, asegúrate de invertir correctamente la perspectiva
+INSTRUCTIONS:
+1. Identify all pieces on the board
+2. Determine which side you're viewing the board from (white at bottom or black at bottom)
+3. Generate the FEN string following the standard format
+4. IMPORTANT: Respond ONLY with the FEN string, without additional explanations
+5. If you see the board from black's side, make sure to correctly invert the perspective
 
-Formato FEN: [posición] [turno] [enroque] [en passant] [medio movimiento] [movimiento completo]
+FEN format: [position] [turn] [castling] [en passant] [halfmove] [fullmove]
 
-Ejemplo de respuesta válida:
+Example of valid response:
 rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
-Responde SOLO con el FEN:"""
+Respond ONLY with the FEN:"""
         
-        # Enviar a Gemini
+        # Send to Gemini
         response = model.generate_content([prompt, img])
         
-        # Extraer el FEN de la respuesta
+        # Extract FEN from response
         fen = response.text.strip()
         
-        # Validación básica del FEN
+        # Basic FEN validation
         if '/' in fen and len(fen.split()) >= 1:
-            short_log(f"✅ FEN extraído por Gemini: {fen}")
+            short_log(f"✅ FEN extracted by Gemini: {fen}")
             return fen
         else:
-            short_log(f"⚠️ Respuesta de Gemini no parece un FEN válido: {fen}")
-            return fen  # Devolver de todas formas para debugging
+            short_log(f"⚠️ Gemini response doesn't seem like a valid FEN: {fen}")
+            return fen  # Return anyway for debugging
             
     except Exception as e:
-        short_log(f"❌ Error al usar Gemini Vision: {str(e)}")
+        short_log(f"❌ Error using Gemini Vision: {str(e)}")
         return None
 
 
 def extract_fen_with_retry(image_path: str = None, image_array: np.ndarray = None, max_retries: int = 2) -> Optional[str]:
     """
-    Intenta extraer FEN con reintentos en caso de fallo.
+    Attempts to extract FEN with retries in case of failure.
     
     Args:
-        image_path: Ruta a la imagen
-        image_array: Array numpy de la imagen
-        max_retries: Número máximo de reintentos
+        image_path: Path to the image
+        image_array: Numpy array of the image
+        max_retries: Maximum number of retries
     
     Returns:
-        String FEN o None
+        FEN string or None
     """
     for attempt in range(max_retries):
         fen = extract_fen_from_image(image_path, image_array)
-        if fen and '/' in fen:  # Validación mínima
+        if fen and '/' in fen:  # Minimum validation
             return fen
         if attempt < max_retries - 1:
-            short_log(f"🔄 Reintentando... (intento {attempt + 2}/{max_retries})")
+            short_log(f"🔄 Retrying... (attempt {attempt + 2}/{max_retries})")
     
     return None

@@ -21,7 +21,7 @@ def _try_python_stockfish(fen: str, depth: int = 15):
         best = sf.get_best_move()
         return best
     except Exception as e:
-        print(f"Error en python-stockfish: {str(e)}")
+        print(f"Error in python-stockfish: {str(e)}")
         return None
     finally:
         # Clean up stockfish instance
@@ -63,12 +63,12 @@ def _try_cli_stockfish(fen: str, depth: int = 10):
         
         # Set position and calculate with movetime limit (1 second)
         p.stdin.write(f'position fen {fen}\n')
-        p.stdin.write(f'go depth {depth} movetime 2000\n')  # Max 2 segundos
+        p.stdin.write(f'go depth {depth} movetime 2000\n')  # Max 2 seconds
         p.stdin.flush()
         
         best_move = None
         start = time.time()
-        while time.time() - start < 5:  # Timeout de 5 segundos total
+        while time.time() - start < 5:  # 5 second total timeout
             line = p.stdout.readline()
             if not line:
                 break
@@ -89,7 +89,7 @@ def _try_cli_stockfish(fen: str, depth: int = 10):
         return best_move
         
     except Exception as e:
-        print(f"Error en Stockfish CLI: {str(e)}")
+        print(f"Error in Stockfish CLI: {str(e)}")
         return None
     
     finally:
@@ -104,9 +104,9 @@ def _try_cli_stockfish(fen: str, depth: int = 10):
 
 def get_best_move_for_fen(fen: str, depth: int = 10) -> str:
     """Return best move string like 'e2e4' or algebraic like 'Nf3'. Could be None if not found."""
-    # Usar solo el método CLI
+    # Use only CLI method
     ans = _try_cli_stockfish(fen, depth)
     if ans:
         return ans
-    print('Stockfish no disponible o error en CLI, devolviendo jugada mock Nf3')
+    print('Stockfish not available or CLI error, returning mock move Nf3')
     return 'Nf3'

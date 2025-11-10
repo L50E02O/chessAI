@@ -14,41 +14,41 @@ from src.utils.helpers import short_log
 HOTKEY = '<ctrl>+q'
 
 def process_capture():
-    """Procesa la captura en un thread separado para no bloquear el hotkey listener"""
+    """Processes the capture in a separate thread to avoid blocking the hotkey listener"""
     try:
         short_log('=' * 60)
         
-        # Verificar si hay una región guardada
+        # Check if there's a saved region
         if not has_saved_region():
-            short_log('📌 Primera vez: Selecciona la región del tablero')
-            short_log('   1. Arrastra el mouse sobre el tablero')
-            short_log('   2. Presiona ENTER para confirmar')
+            short_log('📌 First time: Select the board region')
+            short_log('   1. Drag the mouse over the board')
+            short_log('   2. Press ENTER to confirm')
             region = select_region()
             if not region:
-                short_log('❌ Selección cancelada')
+                short_log('❌ Selection cancelled')
                 short_log('=' * 60)
                 return
-            short_log('✅ Región guardada para futuras capturas')
+            short_log('✅ Region saved for future captures')
         
-        short_log('🎯 Capturando tablero...')
+        short_log('🎯 Capturing board...')
         
-        # Capturar solo la región del tablero
+        # Capture only the board region
         img = capture_region()
-        short_log(f'✅ Captura completada: {img.shape}')
+        short_log(f'✅ Capture completed: {img.shape}')
         
-        # 2. Intentar extraer FEN con Gemini Vision
-        short_log('🤖 Enviando imagen a Google Gemini para análisis...')
-        fen = extract_fen_with_retry(image_array=img, max_retries=1)  # Reducido a 1 reintento
+        # 2. Try to extract FEN with Gemini Vision
+        short_log('🤖 Sending image to Google Gemini for analysis...')
+        fen = extract_fen_with_retry(image_array=img, max_retries=1)  # Reduced to 1 retry
         
-        # 3. Si Gemini falla, usar el método tradicional de detección
+        # 3. If Gemini fails, use traditional detection method
         if not fen or '/' not in fen:
-            short_log('⚠️ Gemini no pudo extraer FEN, usando método tradicional de detección...')
+            short_log('⚠️ Gemini could not extract FEN, using traditional detection method...')
             import tempfile
             import cv2
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                 cv2.imwrite(tmp.name, img)
                 image_path = tmp.name
-            short_log(f'📁 Imagen guardada temporalmente en: {image_path}')
+            short_log(f'📁 Image saved temporarily at: {image_path}')
             fen = detect_board_from_image(image_path)
             try:
                 os.unlink(image_path)
@@ -56,68 +56,68 @@ def process_capture():
                 pass
         
         if not fen:
-            short_log('❌ No se pudo detectar ningún tablero de ajedrez en la imagen')
+            short_log('❌ Could not detect any chess board in the image')
             short_log('=' * 60)
             return
         
-        short_log(f'♟️ FEN detectado: {fen}')
+        short_log(f'♟️ FEN detected: {fen}')
         
-        # 4. Obtener mejor jugada con Stockfish
-        short_log('🧠 Analizando posición con Stockfish...')
+        # 4. Get best move with Stockfish
+        short_log('🧠 Analyzing position with Stockfish...')
         move = get_best_move_for_fen(fen)
         
         if move:
-            short_log(f'✨ Mejor jugada sugerida: {move}')
+            short_log(f'✨ Best move suggested: {move}')
         else:
-            short_log('❌ No se pudo obtener una jugada de Stockfish')
+            short_log('❌ Could not get a move from Stockfish')
         
         short_log('=' * 60)
     
     except Exception as e:
-        short_log(f'❌ Error inesperado: {str(e)}')
+        short_log(f'❌ Unexpected error: {str(e)}')
         short_log('=' * 60)
         import traceback
         traceback.print_exc()
 
 def on_activate():
-    """Inicia el procesamiento en un thread separado para no bloquear el hotkey"""
+    """Starts processing in a separate thread to avoid blocking the hotkey"""
     thread = threading.Thread(target=process_capture, daemon=True)
     thread.start()
 
 def main():
-    short_log('🚀 ChessAI iniciado')
-    short_log(f'⌨️ Escuchando atajo {HOTKEY}. Presiona ESC para salir.')
+    short_log('🚀 ChessAI started')
+    short_log(f'⌨️ Listening for shortcut {HOTKEY}. Press ESC to exit.')
     
     if not has_saved_region():
-        short_log('ℹ️ Primera vez: Presiona Ctrl+Q para seleccionar el área del tablero')
+        short_log('ℹ️ First time: Press Ctrl+Q to select the board area')
     
     short_log('=' * 60)
     
-    # Variable para controlar el loop
+    # Variable to control the loop
     running = True
     
     def on_press(key):
         nonlocal running
         if key == keyboard.Key.esc:
-            short_log('👋 Saliendo...')
+            short_log('👋 Exiting...')
             running = False
             return False
     
-    # Crear el listener de ESC
+    # Create ESC listener
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
     
-    # Crear el hotkey handler
+    # Create hotkey handler
     try:
         with keyboard.GlobalHotKeys({HOTKEY: on_activate}) as h:
             while running and listener.is_alive():
-                # Sleep corto para permitir que ESC se procese
+                # Short sleep to allow ESC to be processed
                 import time
                 time.sleep(0.1)
     except KeyboardInterrupt:
-        short_log('👋 Interrumpido por usuario')
+        short_log('👋 Interrupted by user')
     finally:
-        # Detener el listener al salir
+        # Stop listener on exit
         listener.stop()
 
 if __name__ == '__main__':

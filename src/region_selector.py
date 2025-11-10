@@ -1,5 +1,5 @@
 """
-Selector de región para capturar solo el tablero de ajedrez.
+Region selector to capture only the chess board.
 """
 import cv2
 import numpy as np
@@ -11,20 +11,20 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), '..', 'board_region.json')
 
 def select_region():
     """
-    Permite al usuario seleccionar una región rectangular en la pantalla.
-    Retorna las coordenadas (x, y, width, height)
+    Allows the user to select a rectangular region on the screen.
+    Returns coordinates (x, y, width, height)
     """
-    print("📸 Capturando pantalla completa para selección...")
+    print("📸 Capturing full screen for selection...")
     
-    # Capturar pantalla completa
+    # Capture full screen
     with mss.mss() as sct:
-        # Tomar screenshot de todos los monitores
-        monitor = sct.monitors[0]  # Monitor 0 = todos los monitores combinados
+        # Take screenshot of all monitors
+        monitor = sct.monitors[0]  # Monitor 0 = all monitors combined
         screenshot = sct.grab(monitor)
         img = np.array(screenshot)
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     
-    # Variables para la selección
+    # Variables for selection
     clone = img.copy()
     ref_point = []
     selecting = False
@@ -32,48 +32,48 @@ def select_region():
     def click_and_crop(event, x, y, flags, param):
         nonlocal ref_point, selecting, clone
         
-        # Si se hace clic izquierdo, registrar el punto inicial
+        # If left click, register initial point
         if event == cv2.EVENT_LBUTTONDOWN:
             ref_point = [(x, y)]
             selecting = True
         
-        # Si se mueve el mouse mientras se selecciona, dibujar rectángulo
+        # If mouse moves while selecting, draw rectangle
         elif event == cv2.EVENT_MOUSEMOVE and selecting:
             clone = img.copy()
             cv2.rectangle(clone, ref_point[0], (x, y), (0, 255, 0), 2)
         
-        # Si se suelta el botón, registrar el punto final
+        # If button is released, register final point
         elif event == cv2.EVENT_LBUTTONUP:
             ref_point.append((x, y))
             selecting = False
             cv2.rectangle(clone, ref_point[0], ref_point[1], (0, 255, 0), 2)
     
-    # Crear ventana y establecer callback
-    window_name = "Selecciona el tablero de ajedrez - Arrastra y suelta, luego presiona ENTER"
+    # Create window and set callback
+    window_name = "Select the chess board - Drag and drop, then press ENTER"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(window_name, click_and_crop)
     
-    # Redimensionar ventana para que quepa en pantalla
+    # Resize window to fit on screen
     screen_height, screen_width = img.shape[:2]
     display_width = min(1280, screen_width)
     display_height = int(screen_height * (display_width / screen_width))
     cv2.resizeWindow(window_name, display_width, display_height)
     
-    print("🖱️ Instrucciones:")
-    print("   1. Arrastra el mouse sobre el tablero de ajedrez")
-    print("   2. Presiona ENTER para confirmar")
-    print("   3. Presiona ESC para cancelar")
+    print("🖱️ Instructions:")
+    print("   1. Drag the mouse over the chess board")
+    print("   2. Press ENTER to confirm")
+    print("   3. Press ESC to cancel")
     
-    # Esperar a que el usuario seleccione y presione ENTER
+    # Wait for user to select and press ENTER
     while True:
         cv2.imshow(window_name, clone)
         key = cv2.waitKey(1) & 0xFF
         
-        # Si se presiona ENTER y hay 2 puntos seleccionados
+        # If ENTER is pressed and 2 points are selected
         if key == 13 and len(ref_point) == 2:  # 13 = ENTER
             break
         
-        # Si se presiona ESC, cancelar
+        # If ESC is pressed, cancel
         elif key == 27:  # 27 = ESC
             cv2.destroyAllWindows()
             return None
@@ -81,7 +81,7 @@ def select_region():
     cv2.destroyAllWindows()
     
     if len(ref_point) == 2:
-        # Calcular coordenadas y dimensiones
+        # Calculate coordinates and dimensions
         x1, y1 = ref_point[0]
         x2, y2 = ref_point[1]
         
@@ -97,21 +97,21 @@ def select_region():
             "height": height
         }
         
-        # Guardar la región en archivo
+        # Save region to file
         save_region(region)
         
-        print(f"✅ Región guardada: {width}x{height} en ({x}, {y})")
+        print(f"✅ Region saved: {width}x{height} at ({x}, {y})")
         return region
     
     return None
 
 def save_region(region):
-    """Guarda la región seleccionada en un archivo JSON"""
+    """Saves the selected region to a JSON file"""
     with open(CONFIG_FILE, 'w') as f:
         json.dump(region, f, indent=2)
 
 def load_region():
-    """Carga la región guardada desde el archivo JSON"""
+    """Loads the saved region from the JSON file"""
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
             return json.load(f)
@@ -119,17 +119,17 @@ def load_region():
 
 def capture_region(region=None):
     """
-    Captura solo la región especificada de la pantalla.
-    Si no se proporciona región, usa la guardada.
+    Captures only the specified region of the screen.
+    If no region is provided, uses the saved one.
     """
     if region is None:
         region = load_region()
     
     if region is None:
-        raise ValueError("No hay región guardada. Ejecuta select_region() primero.")
+        raise ValueError("No saved region. Run select_region() first.")
     
     with mss.mss() as sct:
-        # Capturar la región específica
+        # Capture the specific region
         screenshot = sct.grab(region)
         img = np.array(screenshot)
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
@@ -137,21 +137,21 @@ def capture_region(region=None):
     return img
 
 def has_saved_region():
-    """Verifica si existe una región guardada"""
+    """Checks if a saved region exists"""
     return os.path.exists(CONFIG_FILE)
 
 if __name__ == '__main__':
-    # Test: seleccionar región
-    print("🎯 Modo de prueba - Selección de región")
+    # Test: select region
+    print("🎯 Test mode - Region selection")
     region = select_region()
     if region:
-        print(f"✅ Región seleccionada: {region}")
-        print("📸 Capturando región seleccionada...")
+        print(f"✅ Region selected: {region}")
+        print("📸 Capturing selected region...")
         img = capture_region(region)
-        print(f"✅ Captura completada: {img.shape}")
+        print(f"✅ Capture completed: {img.shape}")
         
-        # Mostrar resultado
-        cv2.imshow("Región capturada", img)
-        print("Presiona cualquier tecla para cerrar...")
+        # Show result
+        cv2.imshow("Captured region", img)
+        print("Press any key to close...")
         cv2.waitKey(0)
         cv2.destroyAllWindows()
