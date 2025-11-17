@@ -11,7 +11,7 @@ import time
 import sys
 from typing import Optional
 
-from src.utils.config import STOCKFISH_PATH
+from src.utils.config import STOCKFISH_PATH, STOCKFISH_DOWNLOAD_URL
 from src.utils.helpers import short_log
 
 
@@ -54,7 +54,68 @@ def _find_stockfish() -> Optional[str]:
         if os.path.exists(path):
             return path
     
+    # As a last resort on Windows, attempt to download automatically
+    if sys.platform == 'win32':
+        try:
+            dl = _download_and_extract_stockfish()
+            if dl and os.path.exists(dl):
+                return dl
+        except Exception as e:
+            short_log(f"⚠️ Auto-download failed: {str(e)[:120]}")
+
     return None
+
+
+def _download_and_extract_stockfish(url: str = STOCKFISH_DOWNLOAD_URL) -> Optional[str]:
+    """Download and extract Stockfish for Windows into external/ and return the exe path.
+
+    Uses only stdlib (urllib, zipfile). Safe to call multiple times; skips download if already present.
+    """
+    import urllib.request
+    import zipfile
+
+    root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    external_dir = os.path.join(root, 'external')
+    os.makedirs(external_dir, exist_ok=True)
+
+    zip_path = os.path.join(external_dir, 'stockfish-win-avx2.zip')
+    extract_dir = os.path.join(external_dir, 'stockfish_win')
+    os.makedirs(extract_dir, exist_ok=True)
+
+    # If an exe already exists in extract_dir, return it
+    for dirpath, _, files in os.walk(extract_dir):
+        for fn in files:
+            if fn.lower().startswith('stockfish') and fn.lower().endswith('.exe'):
+                return os.path.join(dirpath, fn)
+
+    short_log('⬇️ Downloading Stockfish (Windows AVX2)...')
+    short_log(f'   {url}')
+    try:
+        urllib.request.urlretrieve(url, zip_path)
+    except Exception as e:
+        raise RuntimeError(f'Failed to download Stockfish: {e}')
+
+    short_log('📦 Extracting Stockfish...')
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall(extract_dir)
+    except Exception as e:
+        raise RuntimeError(f'Failed to extract Stockfish zip: {e}')
+    finally:
+        try:
+            os.remove(zip_path)
+        except Exception:
+            pass
+
+    # Find exe after extraction
+    for dirpath, _, files in os.walk(extract_dir):
+        for fn in files:
+            if fn.lower().startswith('stockfish') and fn.lower().endswith('.exe'):
+                exe_path = os.path.join(dirpath, fn)
+                short_log(f'✅ Stockfish ready: {exe_path}')
+                return exe_path
+
+    raise RuntimeError('Stockfish executable not found after extraction.')
 
 
 def _try_python_stockfish(fen: str, depth: int = 15) -> Optional[str]:
@@ -200,7 +261,7 @@ def _try_cli_stockfish(fen: str, depth: int = 10) -> Optional[str]:
                 short_log(f"   Update STOCKFISH_PATH in src/utils/config.py to use this path")
                 stockfish_path = found_path
             else:
-                short_log(f"💡 Tip: Download Stockfish from https://stockfishchess.org/download/")
+                short_log(f"💡 Tip: Download Stockfish from https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-windows-x86-64-avx2.zip")
                 short_log(f"   Then update STOCKFISH_PATH in src/utils/config.py")
                 return None
         else:
@@ -474,7 +535,7 @@ def get_best_move_for_fen(fen: str, depth: int = 10) -> Optional[str]:
     if not os.path.exists(STOCKFISH_PATH) and not found_path:
         short_log(f'❌ Stockfish not found at: {STOCKFISH_PATH}')
         short_log('💡 To fix this:')
-        short_log('   1. Download Stockfish from https://stockfishchess.org/download/')
+        short_log('   1. Download Stockfish from https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-windows-x86-64-avx2.zip')
         short_log('   2. Extract it to a folder (e.g., C:\\stockfish\\stockfish.exe)')
         short_log('   3. Update STOCKFISH_PATH in src/utils/config.py with the correct path')
     elif found_path and not os.path.exists(STOCKFISH_PATH):

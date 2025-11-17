@@ -98,11 +98,16 @@ Edit `.env`:
 GEMINI_API_KEY=your_api_key_here
 ```
 
-### 5️⃣ Configure Stockfish
-Edit the executable path in:
-```python
-# src/utils/config.py
-STOCKFISH_PATH = r"C:\path\to\stockfish.exe"
+### 5️⃣ Stockfish (Windows)
+Por defecto, el sistema intentará detectar Stockfish. Si no lo encuentra en Windows, hará un **auto-descarga** segura del binario oficial (AVX2) y lo extraerá en `external/stockfish_win/`.
+
+Enlace utilizado para la descarga:  
+<https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-windows-x86-64-avx2.zip>
+
+Opcionalmente puedes establecer la ruta manualmente si prefieres tu propia instalación:
+#
+```ini
+STOCKFISH_PATH=C:\\ruta\\a\\stockfish.exe
 ```
 
 ---
@@ -133,8 +138,8 @@ You'll see something like:
 You can modify parameters in `src/utils/config.py`:
 
 ```python
-HOTKEY = '<ctrl>+q'   # Change the shortcut
-DEPTH = 15             # Stockfish depth
+# Stockfish is now handled automatically - no path configuration needed!
+# The system uses python-stockfish which handles everything automatically
 ```
 
 ### 🌐 Optional variables (Supabase)
@@ -179,9 +184,10 @@ chessAI/
 | Error | Solution |
 |-------|-----------|
 | ❌ `GEMINI_API_KEY not configured` | Check your `.env` file and restart the app. |
-| ⚙️ `Stockfish not responding` | Make sure you have the correct path in `config.py`. |
+| ⚙️ `Stockfish not responding` | The system will download Stockfish automatically. Make sure you have internet connection. |
 | ⌨️ `Shortcut not working` | Run the terminal as administrator or change the shortcut. |
 | ⚠️ `Gemini returns incorrect FEN` | Make sure the board is visible and no windows are on top. |
+| 📥 `Stockfish download failed` | Check your internet connection. On Windows, Stockfish downloads automatically. |
 
 ---
 

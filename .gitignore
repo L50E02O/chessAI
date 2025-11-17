@@ -41,6 +41,9 @@ htmlcov/
 board_region.json
 captures/
 *.png
+external/stockfish_win/
+external/stockfish*.zip
+stockfish/  # Stockfish downloaded automatically
 
 # Scrapy stuff
 .scrapy
