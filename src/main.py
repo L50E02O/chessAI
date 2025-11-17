@@ -36,8 +36,8 @@ def process_capture():
         img = capture_region()
         short_log(f'✅ Capture completed: {img.shape}')
         
-        # 2. Try to extract FEN with Gemini Vision
-        fen = extract_fen_with_retry(image_array=img, max_retries=1)  # Reduced to 1 retry
+        # 2. Try to extract FEN with Gemini Vision (improved retry logic)
+        fen = extract_fen_with_retry(image_array=img, max_retries=2)  # 2 retries with exponential backoff
         
         # 3. If Gemini fails, use traditional detection method
         if not fen or '/' not in fen:
@@ -61,21 +61,28 @@ def process_capture():
         
         short_log(f'♟️ FEN detected: {fen}')
         
-        # 4. Validate FEN before sending to Stockfish
-        from src.ocr.fen_generator import validate_fen
-        if not validate_fen(fen):
-            short_log('❌ FEN is invalid, cannot analyze with Stockfish')
+        # 4. Validate FEN before sending to Stockfish (with detailed error messages)
+        from src.ocr.fen_generator import validate_fen_with_error
+        is_valid, error_msg = validate_fen_with_error(fen)
+        if not is_valid:
+            short_log(f'❌ FEN is invalid: {error_msg}')
             short_log('=' * 60)
             return
         
         # 5. Get best move with Stockfish
         short_log('🧠 Analyzing position with Stockfish...')
-        move = get_best_move_for_fen(fen)
-        
-        if move:
-            short_log(f'✨ Best move suggested: {move}')
-        else:
-            short_log('❌ Could not get a move from Stockfish')
+        try:
+            move = get_best_move_for_fen(fen, depth=12)  # Slightly reduced depth for faster response
+            
+            if move:
+                short_log(f'✨ Best move suggested: {move}')
+            else:
+                short_log('❌ Could not get a move from Stockfish')
+                short_log('   This might indicate checkmate, stalemate, or an engine error')
+        except Exception as e:
+            short_log(f'❌ Error during Stockfish analysis: {str(e)}')
+            import traceback
+            traceback.print_exc()
         
         short_log('=' * 60)
     

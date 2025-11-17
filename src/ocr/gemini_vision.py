@@ -210,35 +210,45 @@ def extract_fen_from_image(image_path: str = None, image_array: np.ndarray = Non
         
         short_log("🤖 Sending image to Google Gemini for analysis...")
         
-        # Specific prompt to extract FEN - improved for mid-game positions
-        prompt = """Analyze this chess board image and extract the position in FEN (Forsyth-Edwards Notation) format.
+        # Improved prompt to extract FEN - optimized for accuracy
+        prompt = """You are a chess position analyzer. Extract the exact FEN (Forsyth-Edwards Notation) from this chess board image.
 
-CRITICAL RULES:
-1. Each row must have EXACTLY 8 squares (count carefully: pieces + empty squares = 8)
-2. There must be exactly 1 white king (K) and 1 black king (k) on the board
-3. Count empty squares carefully - use numbers (1-8) to represent consecutive empty squares
-4. Verify each row sums to 8 squares before writing the FEN
+CRITICAL VALIDATION RULES (MUST FOLLOW):
+1. Each of the 8 rows MUST have exactly 8 squares total (pieces + empty squares = 8)
+2. There MUST be exactly 1 white king (K) and exactly 1 black king (k) on the board
+3. Count empty squares carefully: use single digits (1-8) for consecutive empty squares
+4. NEVER use double digits like "11" for two empty squares - use "2" instead
+5. Verify each row sums to exactly 8 before writing the FEN
 
-INSTRUCTIONS:
-1. Scan the board row by row from top (rank 8) to bottom (rank 1)
-2. For each row, count pieces and empty squares - must total 8
-3. Use numbers for empty squares: '8' = 8 empty, '3' = 3 empty, '11' = 1 empty + 1 empty (never use this, use '2')
-4. Identify which side is to move (white or black)
-5. Check castling rights (KQkq or -)
-6. If viewing from black's perspective, invert the board correctly
+STEP-BY-STEP PROCESS:
+1. Identify the board orientation (white on bottom or black on bottom)
+2. Read from top rank (rank 8) to bottom rank (rank 1)
+3. For each rank:
+   - Count all pieces (R, N, B, Q, K, P for white; r, n, b, q, k, p for black)
+   - Count all empty squares (represented by numbers 1-8)
+   - Verify: pieces + empty squares = 8
+4. Determine active color (w = white to move, b = black to move)
+5. Determine castling rights (KQkq for all, or specific letters, or - for none)
+6. Determine en passant square (specific square like e3, or - for none)
+7. Count halfmove clock (number of halfmoves since last capture/pawn move)
+8. Count fullmove number (starts at 1, increments after black's move)
 
-FEN format: [8 rows separated by /] [turn: w or b] [castling: KQkq or -] [en passant: square or -] [halfmove: number] [fullmove: number]
+FEN FORMAT (6 fields separated by spaces):
+[position: 8 rows separated by /] [turn: w or b] [castling: KQkq or -] [en passant: square or -] [halfmove: number] [fullmove: number]
 
-VALIDATION CHECKLIST before responding:
-- ✓ 8 rows separated by /
-- ✓ Each row = exactly 8 squares
-- ✓ Exactly 1 white king (K) and 1 black king (k)
-- ✓ 6 space-separated fields total
+FINAL VALIDATION CHECKLIST (verify before responding):
+✓ Exactly 8 rows separated by /
+✓ Each row contains exactly 8 squares
+✓ Exactly 1 white king (K) found
+✓ Exactly 1 black king (k) found
+✓ 6 space-separated fields total
+✓ No invalid characters
+✓ No double-digit empty square notation (use single digits only)
 
-Example:
+Example starting position:
 rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
-Respond ONLY with the FEN string, nothing else:"""
+IMPORTANT: Respond with ONLY the FEN string, no explanations, no markdown, no code blocks, just the raw FEN string."""
         
         # Send to Gemini
         response = model.generate_content([prompt, img])
@@ -394,22 +404,72 @@ Respond ONLY with the FEN string, nothing else:"""
 def extract_fen_with_retry(image_path: str = None, image_array: np.ndarray = None, max_retries: int = 2) -> Optional[str]:
     """
     Attempts to extract FEN with retries in case of failure.
+    Uses exponential backoff and improved error handling.
     
     Args:
         image_path: Path to the image
         image_array: Numpy array of the image
-        max_retries: Maximum number of retries
+        max_retries: Maximum number of retries (default 2, recommended 2-3)
     
     Returns:
         FEN string or None
     """
+    last_error = None
+    
     for attempt in range(max_retries):
-        fen = extract_fen_from_image(image_path, image_array)
-        if fen and validate_fen(fen):  # Proper validation
-            return fen
-        if attempt < max_retries - 1:
-            short_log(f"🔄 Retrying... (attempt {attempt + 2}/{max_retries})")
-            # Small delay before retry to avoid rate limiting
-            time.sleep(0.5)
+        try:
+            fen = extract_fen_from_image(image_path, image_array)
+            
+            if fen:
+                # Validate FEN before returning
+                if validate_fen(fen):
+                    short_log(f"✅ FEN validated successfully on attempt {attempt + 1}")
+                    return fen
+                else:
+                    # Try to fix common issues
+                    fixed_fen = _try_fix_fen(fen)
+                    if fixed_fen and validate_fen(fixed_fen):
+                        short_log(f"🔧 FEN auto-fixed and validated on attempt {attempt + 1}")
+                        return fixed_fen
+                    else:
+                        short_log(f"⚠️ FEN from attempt {attempt + 1} failed validation")
+                        if attempt < max_retries - 1:
+                            short_log(f"🔄 Retrying with improved prompt...")
+            
+            # If we get here, extraction failed or validation failed
+            if attempt < max_retries - 1:
+                # Exponential backoff: 0.5s, 1s, 2s...
+                delay = 0.5 * (2 ** attempt)
+                short_log(f"🔄 Retrying in {delay:.1f}s... (attempt {attempt + 2}/{max_retries})")
+                time.sleep(delay)
+                
+        except Exception as e:
+            last_error = str(e)
+            error_msg = str(e)
+            
+            # Handle specific API errors
+            if '429' in error_msg or 'quota' in error_msg.lower() or 'rate limit' in error_msg.lower():
+                short_log(f"❌ API rate limit exceeded. Waiting longer before retry...")
+                if attempt < max_retries - 1:
+                    time.sleep(2.0 * (2 ** attempt))  # Longer wait for rate limits
+                continue
+            elif '401' in error_msg or '403' in error_msg or 'unauthorized' in error_msg.lower():
+                short_log(f"❌ API authentication error. Check your GEMINI_API_KEY")
+                return None  # Don't retry auth errors
+            elif 'timeout' in error_msg.lower():
+                short_log(f"⚠️ Request timeout on attempt {attempt + 1}")
+                if attempt < max_retries - 1:
+                    time.sleep(1.0)
+                continue
+            else:
+                short_log(f"⚠️ Error on attempt {attempt + 1}: {error_msg[:100]}")
+                if attempt < max_retries - 1:
+                    time.sleep(0.5 * (2 ** attempt))
+                continue
+    
+    if last_error:
+        short_log(f"❌ All {max_retries} attempts failed. Last error: {last_error[:200]}")
+    else:
+        short_log(f"❌ All {max_retries} attempts failed to extract valid FEN")
     
     return None
