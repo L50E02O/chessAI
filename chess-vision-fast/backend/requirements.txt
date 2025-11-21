@@ -1,0 +1,11 @@
+fastapi[all]
+uvicorn[standard]
+python-multipart
+Pillow
+numpy
+opencv-python
+python-chess
+ultralytics
+pydantic
+websockets
+pydantic-settings

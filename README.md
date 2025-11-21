@@ -1,241 +1,103 @@
-# ♟️ ChessVision AI  
-### _Real-time Chess Analysis Assistant_
+# Chess Vision Fast
 
-<div align="center">
+Solución full-stack para detectar el estado de un tablero físico y consultar Stockfish local sin depender de servicios en la nube. Está diseñada para funcionar en Windows/macOS/Linux y ofrece modos foto y webcam con overlay de jugadas.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python)
-![Google Gemini](https://img.shields.io/badge/Google%20Gemini-2.5-orange?style=for-the-badge&logo=google)
-![Stockfish](https://img.shields.io/badge/Stockfish-Engine-red?style=for-the-badge&logo=chess)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-green?style=for-the-badge)
+## Estructura
 
-</div>
+- ackend/: FastAPI + Stockfish + detectores locales.
+- rontend/: React 18 + Vite + Tailwind para UX responsiva.
+- models/: instrucciones para bajar pesos y código del detector de Lichess o YOLO.
+- examples/: imágenes demo (oard.jpg, con_movimiento.jpg).
 
-> **ChessVision AI** combines the artificial vision of **Google Gemini 2.5** with the power of the **Stockfish** engine to analyze chess positions in real-time from your screen.  
-> Capture, analyze and get the best move with a single keyboard shortcut.
+## Requisitos
 
----
+1. Python 3.12+ y pip install -r backend/requirements.txt.
+2. Node 18+ (para frontend: 
+pm install dentro de rontend).
+3. Stockfish local (puedes usar el binario del sistema o seguir las instrucciones abajo).
+4. Modelos opcionales en models/ (ver sección Modelos).
 
-## 📚 Table of Contents
-- [🚀 Overview](#-overview)
-- [✨ Features](#-features)
-- [🧠 How It Works](#-how-it-works)
-- [🛠 Installation](#-installation)
-- [⚙️ Configuration](#️-configuration)
-- [🎮 Usage](#-usage)
-- [🏗 Architecture](#-architecture)
-- [🐛 Troubleshooting](#-troubleshooting)
-- [🗺 Roadmap](#-roadmap)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+## Backend
 
----
+1. Define variables opcionales en .env dentro de ackend/:
+   `env
+   DETECTION_BACKEND=lichess
+   YOLO_MODEL_PATH=./models/yolov8-chess.pt
+   STOCKFISH_PATH=/usr/bin/stockfish
+   MAX_UPLOAD_SIZE=5242880
+   `
+2. Arranca con uvicorn app.main:app --reload desde ackend.
+3. Endpoints principales:
+   - POST /api/detect: recibe multipart/form-data con ile, retorna FEN, bounding boxes, timestamp y nivel de confianza.
+   - POST /api/best_move: envía { fen, options?:{depth,time_ms} } y recibe UCI/SAN/score.
+   - POST /api/detect_and_move: combina detección y cálculo (regresa overlay base64).
+   - WS /ws/stream: recibe { frame: base64, backend?: 'lichess'|'yolo' }, devuelve JSON con en, est_move, squares y overlay_coords.
 
-## 🚀 Overview
+## Frontend
 
-**ChessVision AI** is a desktop application that allows you to analyze chess positions directly from any board visible on your screen.  
-Just press **Ctrl + Q** and the AI will:
-1. Capture the screen
-2. Detect the board
-3. Extract the position (FEN)
-4. Analyze with **Stockfish**
-5. Show the best move 💡
+1. Desde rontend/ instala dependencias (
+pm install) y arranca 
+pm run dev.
+2. Componentes:
+   - CameraCapture controla la webcam y envía frames via websocket.
+   - UploadImage envía la foto al backend.
+   - BoardPreview muestra el overlay y la mejor jugada.
+   - Controls permite elegir detector, profundidad y tiempo.
+3. Los estados en pantalla presentan el FEN, la mejor jugada y la confianza de la detección.
 
-Perfect for:
-- 🎓 Studying openings and improving your level
-- 🔍 Analyzing online games in real-time
-- ⚡ Getting instant suggestions
-- 🎯 Compatible with Chess.com, Lichess and more
+## Modelos
 
----
+Sigue los pasos en models/README.md. Para usar el detector de Lichess:
 
-## ✨ Main Features
+`ash
+cd models
+git clone https://github.com/lichess-org/chessboard-image-detector lichess-detector
+pip install -e lichess-detector
+`
 
-| Type | Description |
-|------|--------------|
-| 🖼️ **Smart Recognition** | Automatically detects the board and pieces from screenshots. |
-| 🤖 **AI Vision** | Uses **Google Gemini 2.5 Flash** to recognize positions accurately. |
-| 🧠 **Stockfish Engine** | Professional analysis with configurable depth. |
-| ⚡ **Real-time Performance** | Results in just seconds. |
-| ⌨️ **Global Shortcut (`Ctrl+Q`)** | Instant capture from any window. |
-| 🔄 **OpenCV Fallback** | Uses classical vision if AI fails. |
-| 🆓 **Free** | Compatible with Google Gemini API free plan. |
+Para YOLOv8, descarga el .pt y colocarlo en models/yolov8-chess.pt, luego ajusta YOLO_MODEL_PATH.
 
----
+## Stockfish local
 
-## 🛠 Installation
+### Linux/macOS
+`ash
+sudo apt install stockfish  # Debian/Ubuntu
+# o descarga binario oficial y añade a PATH
+`
 
-### 🔧 Requirements
-- **Python** 3.8 or higher  
-- **Windows 10/11** (main support)  
-- **Internet Connection** (for Google Gemini API)  
-- **Stockfish** installed on your system  
+### Windows
+Descarga el binario desde https://stockfishchess.org/download/ y agrega la ruta al STOCKFISH_PATH en .env.
 
-### 1️⃣ Clone the repository
-```bash
-git clone https://github.com/L50E02O/chessAI.git
-cd chessAI
-```
+## Docker
 
-### 2️⃣ Install dependencies
-```bash
-pip install -r requirements.txt
-```
+- Construye backend y frontend con docker compose -f backend/docker-compose.yml up --build.
+- La app expone http://localhost:5173 (frontend) y http://localhost:8000 (API/WS).
 
-### 3️⃣ Get your Gemini API Key
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Sign in with your Google account
-3. Create a new API key
-4. Copy the key
+## Tests
 
-### 4️⃣ Configure the environment
-Copy the example file and add your key:
-```bash
-copy .env.example .env
-```
-Edit `.env`:
-```ini
-GEMINI_API_KEY=your_api_key_here
-```
+Desde ackend/ ejecuta:
 
-### 5️⃣ Stockfish (Windows)
-Por defecto, el sistema intentará detectar Stockfish. Si no lo encuentra en Windows, hará un **auto-descarga** segura del binario oficial (AVX2) y lo extraerá en `external/stockfish_win/`.
+`ash
+python -m pytest tests/test_fen.py tests/test_stockfish_engine.py
+`
 
-Enlace utilizado para la descarga:  
-<https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-windows-x86-64-avx2.zip>
+El frontend incluye pruebas mínimas con 
+pm run test (si se amplía con storyshots o React Testing Library).
 
-Opcionalmente puedes establecer la ruta manualmente si prefieres tu propia instalación:
-#
-```ini
-STOCKFISH_PATH=C:\\ruta\\a\\stockfish.exe
-```
+## Ejemplos y troubleshooting
 
----
+- Usa examples/board.jpg para pruebas de demo; con_movimiento.jpg incluye overlay de referencia.
+- Para fotos físicas, evita sombras y procura ángulo lo más cenital posible.
+- Si la confianza es baja (confianza < 0.4) en la UI, el sistema mostrará una advertencia verde/amarilla.
 
-## 🎮 Usage
+## Flujo recomendado
 
-Run the application:
-```bash
-python src\main.py
-```
+1. Inicia backend (uvicorn) y frontend (
+pm run dev).
+2. Descarga modelos necesarios según el detector elegido.
+3. Abre la UI, selecciona detector y profundidad.
+4. Usa la cámara o sube una imagen; la UI mostrará la mejor jugada y un overlay.
 
-**Controls:**
-| Shortcut | Action |
-|--------|--------|
-| `Ctrl + Q` | Capture screen and analyze |
-| `ESC` | Exit the application |
+## Licencia
 
-You'll see something like:
-```
-🚀 ChessVision started
-⌨️ Listening for shortcut <Ctrl+Q>...
-```
-
----
-
-## ⚙️ Advanced Configuration
-
-You can modify parameters in `src/utils/config.py`:
-
-```python
-# Stockfish is now handled automatically - no path configuration needed!
-# The system uses python-stockfish which handles everything automatically
-```
-
-### 🌐 Optional variables (Supabase)
-```ini
-SUPABASE_URL=your_url
-SUPABASE_ANON_KEY=your_key
-SUPABASE_BUCKET=boards
-```
-
-> 🧹 The system keeps only the last **10 captures** in Supabase, automatically deleting older ones.
-
----
-
-## 🏗 Project Architecture
-
-```
-chessAI/
-├── src/
-│   ├── main.py                 # Entry point
-│   ├── desktop_capture.py      # Screen capture
-│   ├── ocr/
-│   │   ├── gemini_vision.py    # Gemini Vision integration
-│   │   ├── board_detection.py  # OpenCV fallback
-│   │   └── fen_generator.py    # FEN generator
-│   ├── engine/
-│   │   └── stockfish_engine.py # Stockfish communication
-│   └── utils/
-│       ├── config.py           # General configuration
-│       ├── helpers.py          # Helper functions
-│       └── supabase_client.py  # Supabase client
-├── requirements.txt
-├── .env.example
-├── install.bat
-├── run.bat
-└── README.md
-```
-
----
-
-## 🐛 Troubleshooting
-
-| Error | Solution |
-|-------|-----------|
-| ❌ `GEMINI_API_KEY not configured` | Check your `.env` file and restart the app. |
-| ⚙️ `Stockfish not responding` | The system will download Stockfish automatically. Make sure you have internet connection. |
-| ⌨️ `Shortcut not working` | Run the terminal as administrator or change the shortcut. |
-| ⚠️ `Gemini returns incorrect FEN` | Make sure the board is visible and no windows are on top. |
-| 📥 `Stockfish download failed` | Check your internet connection. On Windows, Stockfish downloads automatically. |
-
----
-
-## 🗺 Roadmap
-
-### ✅ Current version (v1.0)
-- ✔️ Gemini Vision + Stockfish integration  
-- ✔️ OpenCV fallback detection  
-- ✔️ Multi-monitor and global shortcut  
-
-### 🚧 In development (v1.1)
-- 📈 Advanced FEN validation  
-- 💾 Analysis history  
-- 🧩 Basic GUI  
-
-### 🔮 Future (v2.0+)
-- 📱 Mobile app (Android/iOS)  
-- 💬 Streaming integration (Twitch/YouTube)  
-- 🌍 Offline mode with cache  
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! 💪  
-You can:
-- Report bugs or suggest improvements  
-- Submit PRs with new features  
-- Improve documentation  
-
-```bash
-git checkout -b feature/new-feature
-git commit -m "Added new functionality"
-git push origin feature/new-feature
-```
-
----
-
-## 📄 License
-
-This project is licensed under **MIT**.  
-See the [LICENSE](LICENSE) file for more details.
-
----
-
-<div align="center">
-  
-**Made with ❤️ by [L50E02O](https://github.com/L50E02O)**  
-_Analyze. Learn. Improve your chess._ ♟️  
-
-</div>
+MIT (ver LICENSE).
