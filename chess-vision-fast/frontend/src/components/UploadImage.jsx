@@ -21,14 +21,14 @@ export default function UploadImage({ onResult, setStatus, detector }) {
   }
 
   return (
-    <label className= block>
-      <span className=mb-2 block text-sm font-semibold text-slate-300>Subir imagen</span>
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-300">Subir imagen</span>
       <input
         ref={input}
-        type=file
-        accept=image/png,image/jpeg
+        type="file"
+        accept="image/png,image/jpeg"
         onChange={handleUpload}
-        className=block w-full rounded border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white
+        className="block w-full rounded border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white"
       />
     </label>
   )

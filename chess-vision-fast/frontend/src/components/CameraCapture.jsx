@@ -40,7 +40,7 @@ export default function CameraCapture({ onResult, setStatus, detector }) {
         videoRef.current.srcObject = stream
       }
       const socket = openStream(
-        async (frame) => {
+        (frame) => {
           onResult(frame)
           setStatus('Frame recibido')
         },
@@ -50,16 +50,10 @@ export default function CameraCapture({ onResult, setStatus, detector }) {
         },
         detector,
       )
-        onResult(frame)
-        setStatus('Frame recibido')
-      }, (error) => {
-        console.error('WebSocket error', error)
-        setStatus('Error websocket')
-      })
       socketRef.current = socket
-    runningRef.current = true
-    setIsRunning(true)
-    captureLoop()
+      runningRef.current = true
+      setIsRunning(true)
+      captureLoop()
     } catch (error) {
       console.error(error)
       setStatus('No se pudo acceder a la cámara')
@@ -80,23 +74,23 @@ export default function CameraCapture({ onResult, setStatus, detector }) {
   }
 
   return (
-    <div className= space-y-2>
-      <div className=relative h-64 w-full overflow-hidden rounded border border-slate-800 bg-slate-900>
-        <video ref={videoRef} autoPlay playsInline muted className=h-full w-full object-cover />
-        <canvas ref={canvasRef} className=hidden />
+    <div className="space-y-2">
+      <div className="relative h-64 w-full overflow-hidden rounded border border-slate-800 bg-slate-900">
+        <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
+        <canvas ref={canvasRef} className="hidden" />
       </div>
-      <div className=flex gap-2>
+      <div className="flex gap-2">
         <button
           onClick={start}
           disabled={isRunning}
-          className=flex-1 rounded bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950
+          className="flex-1 rounded bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950"
         >
           Iniciar cámara
         </button>
         <button
           onClick={stop}
           disabled={!isRunning}
-          className=flex-1 rounded bg-slate-700 px-4 py-2 text-sm font-semibold text-white
+          className="flex-1 rounded bg-slate-700 px-4 py-2 text-sm font-semibold text-white"
         >
           Detener
         </button>

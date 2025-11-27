@@ -42,7 +42,7 @@ export default function App() {
   const downloadOverlay = () => {
     if (!overlayImage) return
     const link = document.createElement('a')
-    link.href = data:image/png;base64,
+    link.href = `data:image/png;base64,${overlayImage}`
     link.download = 'overlay.png'
     link.click()
   }
@@ -53,35 +53,35 @@ export default function App() {
   )
 
   return (
-    <div className= min-h-screen bg-slate-950 px-4 py-6>
-      <header className=mx-auto max-w-5xl space-y-2 text-center>
-        <p className=text-sm uppercase tracking-[0.3em] text-slate-500>Chess Vision Fast</p>
-        <h1 className=text-3xl font-semibold text-white>Analiza tu tablero físico en segundos</h1>
-        <p className=text-slate-400>
+    <div className="min-h-screen bg-slate-950 px-4 py-6">
+      <header className="mx-auto max-w-5xl space-y-2 text-center">
+        <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Chess Vision Fast</p>
+        <h1 className="text-3xl font-semibold text-white">Analiza tu tablero físico en segundos</h1>
+        <p className="text-slate-400">
           Sube una foto o usa la cámara para detectar las piezas, generar FEN y pedir la mejor jugada desde Stockfish.
         </p>
       </header>
 
-      <main className=mx-auto mt-8 grid max-w-5xl gap-6 lg:grid-cols-3>
-        <section className=lg:col-span-2 space-y-4>
-          <div className=rounded border border-slate-800 bg-slate-900 p-4>
-            <div className=flex items-center justify-between>
-              <h2 className=text-lg font-semibold text-white>Cámara</h2>
-              <span className=text-xs text-slate-400>{status}</span>
+      <main className="mx-auto mt-8 grid max-w-5xl gap-6 lg:grid-cols-3">
+        <section className="lg:col-span-2 space-y-4">
+          <div className="rounded border border-slate-800 bg-slate-900 p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Cámara</h2>
+              <span className="text-xs text-slate-400">{status}</span>
             </div>
             <CameraCapture onResult={handleResult} setStatus={setStatus} {...cameraProps} />
           </div>
           <UploadImage onResult={handleResult} setStatus={setStatus} detector={detector} />
         </section>
 
-        <section className=space-y-4>
+        <section className="space-y-4">
           <BoardPreview overlayImage={overlayImage} fen={fen} bestMove={bestMoveText} confidence={confidence} />
-          <div className=space-y-2 rounded border border-slate-800 bg-slate-900 p-4>
-            <div className=flex items-center justify-between>
-              <h2 className=text-lg font-semibold text-white>Ajustes</h2>
+          <div className="space-y-2 rounded border border-slate-800 bg-slate-900 p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Ajustes</h2>
               <button
                 onClick={downloadOverlay}
-                className=rounded bg-slate-700 px-3 py-1 text-xs font-semibold text-white
+                className="rounded bg-slate-700 px-3 py-1 text-xs font-semibold text-white"
               >
                 Descargar overlay
               </button>
@@ -96,7 +96,7 @@ export default function App() {
             />
             <button
               onClick={handleManualBestMove}
-              className=w-full rounded bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950
+              className="w-full rounded bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950"
             >
               Calcular mejor jugada
             </button>
