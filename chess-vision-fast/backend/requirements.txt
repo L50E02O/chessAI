@@ -5,7 +5,7 @@ Pillow
 numpy
 opencv-python
 python-chess
-ultralytics
 pydantic
 websockets
 pydantic-settings
+google-generativeai

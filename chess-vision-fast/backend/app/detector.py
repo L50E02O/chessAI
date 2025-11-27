@@ -14,7 +14,7 @@ from .utils import AppSettings
 
 logger = logging.getLogger(__name__)
 
-# Mapeo de etiquetas Roboflow/YOLO a notacion FEN
+# Mapeo de etiquetas de piezas a notacion FEN (para compatibilidad)
 PieceMap = {
     'white-pawn': 'P', 'white_pawn': 'P', 'wp': 'P',
     'white-rook': 'R', 'white_rook': 'R', 'wr': 'R',
@@ -66,178 +66,6 @@ class BaseDetector:
         return (x, y, width / 8, height / 8)
 
 
-class RoboflowDetector(BaseDetector):
-    """Detector usando Roboflow Inference API con modelo pre-entrenado de ajedrez."""
-    
-    def __init__(self, settings: AppSettings) -> None:
-        super().__init__(settings)
-        self.api_key = settings.roboflow_api_key
-        self.model_id = settings.roboflow_model_id
-        self._client = None
-    
-    def _get_client(self):
-        if self._client is None:
-            try:
-                from inference_sdk import InferenceHTTPClient
-                self._client = InferenceHTTPClient(
-                    api_url="https://detect.roboflow.com",
-                    api_key=self.api_key
-                )
-            except ImportError:
-                logger.warning("inference_sdk no instalado, usando fallback")
-                return None
-        return self._client
-    
-    def detect(self, image: Image.Image) -> DetectionResult:
-        client = self._get_client()
-        if not client or not self.api_key:
-            logger.warning("Roboflow no configurado")
-            return self._empty_result(image)
-        
-        try:
-            # Convertir imagen a bytes
-            buffered = io.BytesIO()
-            image.save(buffered, format='JPEG')
-            img_bytes = buffered.getvalue()
-            img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-            
-            # Llamar API de Roboflow
-            result = client.infer(img_base64, model_id=self.model_id)
-            
-            squares = []
-            overlay = Image.new('RGBA', image.size, (0, 0, 0, 0))
-            draw = ImageDraw.Draw(overlay)
-            
-            for pred in result.get('predictions', []):
-                label = pred.get('class', '').lower().replace(' ', '-')
-                score = pred.get('confidence', 0)
-                if score < self.settings.yolo_confidence:
-                    continue
-                
-                piece_letter = PieceMap.get(label, '')
-                if not piece_letter:
-                    logger.debug(f"Etiqueta no reconocida: {label}")
-                    continue
-                
-                # Roboflow devuelve x, y (centro), width, height
-                cx = pred.get('x', 0)
-                cy = pred.get('y', 0)
-                w = pred.get('width', 0)
-                h = pred.get('height', 0)
-                x1, y1, x2, y2 = cx - w/2, cy - h/2, cx + w/2, cy + h/2
-                
-                draw.rectangle([x1, y1, x2, y2], outline='lime', width=2)
-                draw.text((x1, y1 - 12), piece_letter, fill='lime')
-                
-                square_name = self._guess_square_from_bbox((x1, y1, x2, y2), image.size)
-                squares.append(SquareDetection(
-                    square=square_name,
-                    bbox=(x1, y1, w, h),
-                    piece=piece_letter,
-                    confidence=score
-                ))
-            
-            fen = fen_from_squares(squares)
-            combined = Image.alpha_composite(image.convert('RGBA'), overlay)
-            
-            return DetectionResult(
-                fen=fen,
-                board_image_base64=self._image_to_base64(combined),
-                squares=squares,
-                confidence=min([s.confidence for s in squares], default=0.3),
-            )
-        except Exception as exc:
-            logger.error(f"Error en Roboflow API: {exc}")
-            return self._empty_result(image)
-    
-    def _empty_result(self, image: Image.Image) -> DetectionResult:
-        """Devuelve resultado vacio cuando no se puede detectar."""
-        return DetectionResult(
-            fen=chess.STARTING_FEN,
-            board_image_base64=self._image_to_base64(image),
-            squares=[],
-            confidence=0.0,
-        )
-    
-    def _guess_square_from_bbox(self, bbox: Tuple[float, float, float, float], size: Tuple[int, int]) -> str:
-        x1, y1, x2, y2 = bbox
-        width, height = size
-        col = int((x1 + x2) / 2 * 8 / width)
-        row = 7 - int((y1 + y2) / 2 * 8 / height)
-        col = max(0, min(7, col))
-        row = max(0, min(7, row))
-        return chess.square_name(row * 8 + col)
-
-
-class YoloDetector(BaseDetector):
-    """Detector usando modelo YOLO local."""
-    
-    def __init__(self, settings: AppSettings) -> None:
-        super().__init__(settings)
-        self.model = None
-        model_path = Path(settings.yolo_model_path)
-        if model_path.exists():
-            try:
-                from ultralytics import YOLO
-                self.model = YOLO(str(model_path))
-                logger.info(f"Modelo YOLO cargado desde {model_path}")
-            except Exception as exc:
-                logger.warning(f'Error cargando modelo YOLO: {exc}')
-        else:
-            logger.warning(f'Modelo YOLO no encontrado en {model_path}')
-
-    def detect(self, image: Image.Image) -> DetectionResult:
-        if not self.model:
-            # Sin modelo, devolver resultado vacio
-            return DetectionResult(
-                fen=chess.STARTING_FEN,
-                board_image_base64=self._image_to_base64(image),
-                squares=[],
-                confidence=0.0,
-            )
-
-        results = self.model(image)
-        squares = []
-        overlay = Image.new('RGBA', image.size, (0, 0, 0, 0))
-        draw = ImageDraw.Draw(overlay)
-
-        for pred in results:
-            boxes = pred.boxes
-            names = pred.names
-            for box in boxes:
-                cls = int(box.cls[0])
-                score = float(box.conf[0])
-                if score < self.settings.yolo_confidence:
-                    continue
-                label = names.get(cls, '').lower()
-                piece_letter = PieceMap.get(label, '')
-                if not piece_letter:
-                    continue
-                x1, y1, x2, y2 = map(float, box.xyxy[0])
-                draw.rectangle([x1, y1, x2, y2], outline='lime', width=2)
-                draw.text((x1, y1), piece_letter, fill='white')
-                square_name = self._guess_square_from_bbox((x1, y1, x2, y2), image.size)
-                squares.append(SquareDetection(square=square_name, bbox=(x1, y1, x2 - x1, y2 - y1), piece=piece_letter, confidence=score))
-
-        fen = fen_from_squares(squares)
-        combined = Image.alpha_composite(image.convert('RGBA'), overlay)
-        return DetectionResult(
-            fen=fen,
-            board_image_base64=self._image_to_base64(combined),
-            squares=squares,
-            confidence=min([s.confidence for s in squares], default=0.3),
-        )
-
-    def _guess_square_from_bbox(self, bbox: Tuple[float, float, float, float], size: Tuple[int, int]) -> str:
-        x1, y1, x2, y2 = bbox
-        width, height = size
-        col = int((x1 + x2) / 2 * 8 / width)
-        row = 7 - int((y1 + y2) / 2 * 8 / height)
-        col = max(0, min(7, col))
-        row = max(0, min(7, row))
-        return chess.square_name(row * 8 + col)
-
-
 def fen_from_detections(squares: List[SquareDetection]) -> str:
     board = [['' for _ in range(8)] for _ in range(8)]
     for det in squares:
@@ -267,19 +95,14 @@ def fen_from_detections(squares: List[SquareDetection]) -> str:
 
 
 class DetectorFactory:
-    """Fabrica de detectores. Usa Gemini por defecto (mejor para capturas de pantalla)."""
+    """Fabrica de detectores. Usa Gemini Vision para detección de tableros."""
     
     def __init__(self, settings: AppSettings, override_backend: Optional[str] = None) -> None:
         self.settings = settings
-        self.override_backend = override_backend
+        # override_backend se mantiene por compatibilidad pero no se usa
 
     def create(self) -> BaseDetector:
-        backend = (self.override_backend or self.settings.detection_backend).lower()
-        if backend == 'yolo':
-            return YoloDetector(self.settings)
-        if backend == 'roboflow':
-            return RoboflowDetector(self.settings)
-        # Por defecto usar Gemini (mejor para capturas de pantalla)
+        # Solo usa Gemini para detección
         return GeminiVisionDetector(self.settings)
 
 

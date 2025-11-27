@@ -1,4 +1,3 @@
-
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 async function _jsonResponse(response) {
@@ -27,11 +26,23 @@ export function detectAndMove(file) {
   }).then(_jsonResponse)
 }
 
-export function bestMove(fen, options = {}) {
+export function bestMove(fen) {
   return fetch(`${API_BASE}/api/best_move`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fen, options }),
+    body: JSON.stringify({ fen }),
+  }).then(_jsonResponse)
+}
+
+export function clearContext() {
+  return fetch(`${API_BASE}/api/clear_context`, {
+    method: 'POST',
+  }).then(_jsonResponse)
+}
+
+export function getRetrospective() {
+  return fetch(`${API_BASE}/api/retrospective`, {
+    method: 'GET',
   }).then(_jsonResponse)
 }
 

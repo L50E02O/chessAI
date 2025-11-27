@@ -240,9 +240,69 @@ class GeminiDetector:
         except Exception:
             return False
 
+    def suggest_best_move(self, image: Image.Image, timeout: float = 15.0) -> Optional[dict]:
+        """
+        Pide a Gemini que sugiera el mejor movimiento basado en la imagen.
+        Sugiere el mejor movimiento basado en análisis de Gemini.
+        
+        Returns:
+            dict con 'move' (UCI), 'san', 'explanation' o None si falla
+        """
+        try:
+            model = self._get_model()
+            
+            # Preparar imagen
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            prompt = """Analyze this chess board image and suggest the best move.
+
+Return your answer in this exact JSON format:
+{"move": "e2e4", "san": "e4", "explanation": "Controls the center"}
+
+Rules:
+1. "move" must be in UCI format (e.g., e2e4, g1f3, e1g1 for castling)
+2. "san" is standard algebraic notation (e.g., e4, Nf3, O-O)
+3. "explanation" is a brief reason for the move
+4. Determine whose turn it is based on the position
+5. Choose a strong, logical move
+
+Return ONLY the JSON, no other text:"""
+            
+            response = model.generate_content(
+                [prompt, image],
+                request_options={"timeout": timeout}
+            )
+            
+            if not response.text:
+                return None
+            
+            # Parsear JSON de respuesta
+            import json
+            text = response.text.strip()
+            # Limpiar posibles marcadores de codigo
+            if text.startswith('```'):
+                text = text.split('\n', 1)[1] if '\n' in text else text[3:]
+            if text.endswith('```'):
+                text = text[:-3]
+            text = text.strip()
+            
+            result = json.loads(text)
+            return {
+                'move': result.get('move', ''),
+                'san': result.get('san', ''),
+                'explanation': result.get('explanation', 'Sugerido por Gemini AI'),
+                'source': 'gemini'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error en Gemini suggest_best_move: {e}")
+            return None
+
 
 def image_to_base64(image: Image.Image, format: str = 'PNG') -> str:
     """Convierte imagen PIL a base64."""
     buffered = io.BytesIO()
     image.save(buffered, format=format)
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
