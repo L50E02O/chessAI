@@ -1,6 +1,10 @@
+import asyncio
 import logging
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Thread
 from typing import Dict, Optional
 
 import chess
@@ -17,6 +21,38 @@ class MoveResult:
     score: Dict[str, Optional[int]]
 
 
+def _open_stockfish_sync(path: str) -> SimpleEngine:
+    """
+    Abre Stockfish de forma sincrona, compatible con Windows + FastAPI threads.
+    Crea un event loop dedicado en un thread separado para evitar conflictos.
+    """
+    result = [None, None]  # [engine, exception]
+    
+    def run_in_thread():
+        try:
+            if sys.platform == 'win32':
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                engine = SimpleEngine.popen_uci(path)
+                result[0] = engine
+            finally:
+                pass  # No cerramos el loop, el engine lo necesita
+        except Exception as e:
+            result[1] = e
+    
+    thread = Thread(target=run_in_thread)
+    thread.start()
+    thread.join(timeout=10)
+    
+    if result[1]:
+        raise result[1]
+    if result[0] is None:
+        raise RuntimeError('Timeout al iniciar Stockfish')
+    return result[0]
+
+
 class StockfishEngine:
     def __init__(self, path: Path, default_depth: int = 12) -> None:
         self.path = Path(path)
@@ -28,7 +64,7 @@ class StockfishEngine:
         if self.engine:
             return
         logger.info('Iniciando Stockfish desde %s', self.path)
-        self.engine = SimpleEngine.popen_uci(str(self.path))
+        self.engine = _open_stockfish_sync(str(self.path))
 
     def set_fen(self, fen: str) -> None:
         self.board = chess.Board(fen)
