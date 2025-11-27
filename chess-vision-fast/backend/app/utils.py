@@ -8,7 +8,7 @@ class AppSettings(BaseSettings):
     # Google Gemini API (obtener en https://aistudio.google.com/apikey)
     # REQUERIDO para el análisis de ajedrez
     gemini_api_key: str = ''
-    gemini_model: str = 'gemini-1.5-flash'  # Modelo rápido, bueno para visión
+    gemini_model: str = 'gemini-2.0-flash'  # Modelo más reciente, mejor para visión y análisis
     
     # General
     allowed_origins: List[str] = ['*']

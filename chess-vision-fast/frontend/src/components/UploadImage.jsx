@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { detectAndMove } from '../services/api'
 
-export default function UploadImage({ onResult, setStatus, setIsLoading }) {
+export default function UploadImage({ onResult, setStatus, setIsLoading, abortControllerRef }) {
   const input = useRef(null)
   const dropZoneRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -12,17 +12,36 @@ export default function UploadImage({ onResult, setStatus, setIsLoading }) {
       setStatus('Archivo no es una imagen válida')
       return
     }
+    
+    // Cancelar operación anterior si existe
+    if (abortControllerRef?.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    // Crear nuevo AbortController
+    abortControllerRef.current = new AbortController()
+    
     if (setIsLoading) setIsLoading(true)
     setStatus('Analizando imagen con Gemini...')
+    
     try {
-      const data = await detectAndMove(file)
+      const data = await detectAndMove(file, abortControllerRef.current.signal)
       onResult(data)
-      setStatus('Análisis completado')
+      if (!data.error) {
+        setStatus('Análisis completado')
+      }
     } catch (error) {
-      console.error(error)
-      setStatus('Error procesando imagen')
+      if (error.name === 'AbortError') {
+        setStatus('Análisis cancelado')
+      } else {
+        console.error(error)
+        const errorMsg = error.message || 'Error procesando imagen'
+        setStatus(`Error: ${errorMsg}`)
+        onResult({ error: errorMsg })
+      }
     } finally {
       if (setIsLoading) setIsLoading(false)
+      abortControllerRef.current = null
     }
   }
 

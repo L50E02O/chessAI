@@ -7,10 +7,18 @@ export default function BoardPreview({
   confidence,
   explanation,
   positionAnalysis,
-  strategicNotes 
+  strategicNotes,
+  error
 }) {
   return (
     <div className="space-y-2">
+      {error && (
+        <div className="rounded border border-red-500/30 bg-red-500/10 p-2">
+          <p className="text-xs font-semibold text-red-400 mb-1">Error</p>
+          <p className="text-xs text-red-300">{error}</p>
+        </div>
+      )}
+
       {fen && (
         <div className="rounded border border-slate-700 bg-slate-900/50 p-2">
           <div className="flex items-center justify-between mb-1">
@@ -59,7 +67,7 @@ export default function BoardPreview({
         </div>
       )}
 
-      {!bestMove && fen && (
+      {!bestMove && fen && !error && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-center">
           <p className="text-xs text-amber-400">
             Haz clic en "Analizar" para obtener la mejor jugada

@@ -20,7 +20,7 @@ class GeminiChessService:
     Mantiene el contexto de la partida y proporciona análisis continuo.
     """
     
-    def __init__(self, api_key: str, model: str = "gemini-1.5-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
         self.gemini = GeminiDetector(api_key, model)
         self.conversation_history: List[Dict[str, str]] = []
         self.move_history: List[str] = []

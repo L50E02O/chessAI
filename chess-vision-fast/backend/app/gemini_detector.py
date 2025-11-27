@@ -39,7 +39,7 @@ Return ONLY the FEN string:"""
 class GeminiDetector:
     """Detector usando Google Gemini Vision API."""
     
-    def __init__(self, api_key: str, model: str = "gemini-1.5-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
         self.api_key = api_key
         self.model_name = model
         self._model = None
@@ -111,12 +111,31 @@ class GeminiDetector:
             # Intentar reparar errores de conteo
             fen = self._try_fix_fen(fen)
             
-            # Validar FEN reparado
+            # Validar FEN reparado con python-chess para mejor feedback
+            try:
+                import chess
+                board = chess.Board(fen)
+                # Verificar que tenga ambos reyes
+                has_kings = (
+                    len(board.pieces(chess.KING, chess.WHITE)) == 1 and
+                    len(board.pieces(chess.KING, chess.BLACK)) == 1
+                )
+                if has_kings:
+                    logger.info(f"FEN detectado y validado: {fen}")
+                    return fen
+                else:
+                    logger.warning(f"FEN sin ambos reyes: {fen}")
+            except ValueError as e:
+                logger.warning(f"FEN inválido (python-chess): {fen} - Error: {str(e)}")
+            except Exception as e:
+                logger.warning(f"Error validando FEN con python-chess: {fen} - Error: {str(e)}")
+            
+            # Si falla validación con python-chess, intentar validación básica
             if self._validate_fen(fen):
-                logger.info(f"FEN detectado: {fen}")
+                logger.info(f"FEN detectado (validación básica): {fen}")
                 return fen
             
-            logger.warning(f"FEN invalido despues de reparacion: {fen}")
+            logger.warning(f"FEN inválido después de reparación: {fen}")
             return None
             
         except Exception as e:
@@ -127,24 +146,112 @@ class GeminiDetector:
         """Extrae el FEN del texto de respuesta."""
         text = text.strip()
         
-        # Si es solo el FEN
-        if self._looks_like_fen(text):
-            # Agregar partes faltantes si es necesario
-            parts = text.split()
-            if len(parts) == 1:
-                text += " w KQkq - 0 1"
-            return text
+        # Limpiar posibles marcadores de código o texto adicional
+        if text.startswith('```'):
+            text = text.split('\n', 1)[1] if '\n' in text else text[3:]
+        if text.endswith('```'):
+            text = text[:-3]
+        text = text.strip()
         
-        # Buscar patron FEN en el texto
-        fen_pattern = r'([rnbqkpRNBQKP1-8]+/){7}[rnbqkpRNBQKP1-8]+(\s+[wb]\s+[KQkq-]+\s+[a-h1-8-]+\s+\d+\s+\d+)?'
+        # Limpiar caracteres no válidos del tablero (solo permitir rnbqkpRNBQKP12345678/)
+        # Primero extraer el tablero
+        lines = text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Buscar patrón de tablero (8 filas separadas por /)
+            parts = line.split()
+            if len(parts) >= 1:
+                board_part = parts[0]
+                
+                # Limpiar caracteres inválidos del tablero
+                # Reemplazar caracteres problemáticos comunes que Gemini puede confundir
+                # 'h' podría ser confundido con 'b' (bishop) o 'n' (knight)
+                # 'H' podría ser confundido con 'B' o 'N'
+                # Intentar corregir errores comunes
+                board_part = board_part.replace('h', 'b')  # 'h' minúscula probablemente es 'b' (bishop)
+                board_part = board_part.replace('H', 'B')  # 'H' mayúscula probablemente es 'B'
+                board_part = board_part.replace('0', '')  # Eliminar ceros (no válidos en FEN)
+                board_part = re.sub(r'[^rnbqkpRNBQKP12345678/]', '', board_part)  # Solo caracteres válidos
+                
+                if '/' in board_part:
+                    rows = board_part.split('/')
+                    if len(rows) == 8:
+                        # Validar que cada fila tenga solo caracteres válidos
+                        valid_rows = []
+                        for row in rows:
+                            # Limpiar cada fila
+                            clean_row = re.sub(r'[^rnbqkpRNBQKP12345678]', '', row)
+                            if clean_row:
+                                valid_rows.append(clean_row)
+                        
+                        if len(valid_rows) == 8:
+                            board_part = '/'.join(valid_rows)
+                            
+                            # Construir FEN completo
+                            if len(parts) >= 6:
+                                # Ya tiene todas las partes
+                                return f"{board_part} {' '.join(parts[1:6])}"
+                            else:
+                                # Agregar partes faltantes
+                                fen_parts = [board_part]
+                                if len(parts) > 1:
+                                    fen_parts.extend(parts[1:])
+                                
+                                # Completar partes faltantes
+                                while len(fen_parts) < 6:
+                                    if len(fen_parts) == 1:
+                                        fen_parts.append('w')
+                                    elif len(fen_parts) == 2:
+                                        fen_parts.append('KQkq')
+                                    elif len(fen_parts) == 3:
+                                        fen_parts.append('-')
+                                    elif len(fen_parts) == 4:
+                                        fen_parts.append('0')
+                                    elif len(fen_parts) == 5:
+                                        fen_parts.append('1')
+                                
+                                return ' '.join(fen_parts)
+        
+        # Si no se encontró en líneas separadas, buscar patrón FEN en el texto completo
+        fen_pattern = r'([rnbqkpRNBQKP1-8]+/){7}[rnbqkpRNBQKP1-8]+(?:\s+[wb]\s+[KQkq-]+\s+[a-h1-8-]+\s+\d+\s+\d+)?'
         match = re.search(fen_pattern, text)
         if match:
-            fen = match.group(0)
-            # Agregar partes faltantes si es necesario
+            fen = match.group(0).strip()
+            # Limpiar caracteres inválidos
             parts = fen.split()
-            if len(parts) == 1:
-                fen += " w KQkq - 0 1"
-            return fen
+            if len(parts) >= 1:
+                board_part = parts[0]
+                # Limpiar tablero - corregir errores comunes
+                board_part = board_part.replace('h', 'b')  # 'h' probablemente es 'b'
+                board_part = board_part.replace('H', 'B')  # 'H' probablemente es 'B'
+                board_part = re.sub(r'[^rnbqkpRNBQKP12345678/]', '', board_part)
+                rows = board_part.split('/')
+                if len(rows) == 8:
+                    # Limpiar cada fila
+                    clean_rows = [re.sub(r'[^rnbqkpRNBQKP12345678]', '', row) for row in rows]
+                    board_part = '/'.join(clean_rows)
+                    
+                    if len(parts) >= 6:
+                        return f"{board_part} {' '.join(parts[1:6])}"
+                    else:
+                        fen_parts = [board_part]
+                        if len(parts) > 1:
+                            fen_parts.extend(parts[1:])
+                        while len(fen_parts) < 6:
+                            if len(fen_parts) == 1:
+                                fen_parts.append('w')
+                            elif len(fen_parts) == 2:
+                                fen_parts.append('KQkq')
+                            elif len(fen_parts) == 3:
+                                fen_parts.append('-')
+                            elif len(fen_parts) == 4:
+                                fen_parts.append('0')
+                            elif len(fen_parts) == 5:
+                                fen_parts.append('1')
+                        return ' '.join(fen_parts)
         
         return None
     

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import UploadImage from './components/UploadImage'
 import BoardPreview from './components/BoardPreview'
 import { bestMove, clearContext, getRetrospective } from './services/api'
@@ -15,46 +15,99 @@ export default function App() {
   const [retrospective, setRetrospective] = useState(null)
   const [showRetrospective, setShowRetrospective] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
+  
+  // AbortController para cancelar operaciones
+  const abortControllerRef = useRef(null)
+
+  const cancelOperation = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    setIsLoading(false)
+    setStatus('Operación cancelada')
+    setError(null)
+  }
 
   const handleResult = (data) => {
-    setFen(data.fen)
+    setFen(data.fen || '')
     setOverlayImage(data.overlay_image_base64 || data.board_image_base64)
     setBestMoveText(data.best_move || data.uci || '')
     setExplanation(data.explanation || '')
     setPositionAnalysis(data.position_analysis || '')
     setStrategicNotes(data.strategic_notes || '')
     setConfidence(data.confidence)
-    setStatus('Análisis completado')
+    
+    if (data.error) {
+      setError(data.error)
+      setStatus(`Error: ${data.error}`)
+    } else {
+      setError(null)
+      setStatus('Análisis completado')
+    }
     setIsLoading(false)
   }
 
   const handleManualBestMove = async () => {
     if (!fen) {
       setStatus('Primero sube una imagen del tablero')
+      setError('No hay FEN disponible')
       return
     }
+    
+    // Cancelar operación anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    abortControllerRef.current = new AbortController()
     setIsLoading(true)
+    setError(null)
     setStatus('Analizando con Gemini GM...')
+    
     try {
-      const response = await bestMove(fen)
+      const response = await bestMove(fen, abortControllerRef.current.signal)
       setBestMoveText(response.best_move || response.uci || '')
       setExplanation(response.explanation || '')
       setPositionAnalysis(response.position_analysis || '')
       setStrategicNotes(response.strategic_notes || '')
-      setStatus('Análisis completado')
+      
+      if (response.error) {
+        setError(response.error)
+        setStatus(`Error: ${response.error}`)
+      } else {
+        setError(null)
+        setStatus('Análisis completado')
+      }
     } catch (error) {
-      console.error(error)
-      setStatus('Error al analizar la posición')
+      if (error.name === 'AbortError') {
+        setStatus('Análisis cancelado')
+        setError(null)
+      } else {
+        console.error(error)
+        const errorMsg = error.message || 'Error al analizar la posición'
+        setError(errorMsg)
+        setStatus(`Error: ${errorMsg}`)
+      }
     } finally {
       setIsLoading(false)
+      abortControllerRef.current = null
     }
   }
 
   const handleClearContext = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    abortControllerRef.current = new AbortController()
     setIsLoading(true)
+    setError(null)
     setStatus('Limpiando contexto...')
+    
     try {
-      await clearContext()
+      await clearContext(abortControllerRef.current.signal)
       setFen('')
       setBestMoveText('')
       setExplanation('')
@@ -63,28 +116,53 @@ export default function App() {
       setOverlayImage(null)
       setRetrospective(null)
       setShowRetrospective(false)
+      setError(null)
       setStatus('Contexto limpiado - Listo para nueva partida')
     } catch (error) {
-      console.error(error)
-      setStatus('Error al limpiar contexto')
+      if (error.name === 'AbortError') {
+        setStatus('Operación cancelada')
+        setError(null)
+      } else {
+        console.error(error)
+        const errorMsg = error.message || 'Error al limpiar contexto'
+        setError(errorMsg)
+        setStatus(`Error: ${errorMsg}`)
+      }
     } finally {
       setIsLoading(false)
+      abortControllerRef.current = null
     }
   }
 
   const handleGetRetrospective = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    abortControllerRef.current = new AbortController()
     setIsLoading(true)
+    setError(null)
     setStatus('Generando retrospectiva...')
+    
     try {
-      const response = await getRetrospective()
+      const response = await getRetrospective(abortControllerRef.current.signal)
       setRetrospective(response.retrospective)
       setShowRetrospective(true)
+      setError(null)
       setStatus('Retrospectiva generada')
     } catch (error) {
-      console.error(error)
-      setStatus('Error al obtener retrospectiva')
+      if (error.name === 'AbortError') {
+        setStatus('Operación cancelada')
+        setError(null)
+      } else {
+        console.error(error)
+        const errorMsg = error.message || 'Error al obtener retrospectiva'
+        setError(errorMsg)
+        setStatus(`Error: ${errorMsg}`)
+      }
     } finally {
       setIsLoading(false)
+      abortControllerRef.current = null
     }
   }
 
@@ -111,10 +189,26 @@ export default function App() {
             </span>
           </h1>
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <div className={`h-1.5 w-1.5 rounded-full ${isLoading ? 'bg-yellow-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+            <div className={`h-1.5 w-1.5 rounded-full ${isLoading ? 'bg-yellow-500 animate-pulse' : error ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
             <span className="hidden sm:inline">{status}</span>
           </div>
+          {isLoading && (
+            <button
+              onClick={cancelOperation}
+              className="ml-2 rounded bg-red-500/20 hover:bg-red-500/30 px-2 py-1 text-xs font-semibold text-red-400 transition-all flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Cancelar
+            </button>
+          )}
         </div>
+        {error && (
+          <div className="mt-1 text-xs text-red-400 bg-red-500/10 rounded px-2 py-1 inline-block">
+            {error}
+          </div>
+        )}
       </header>
 
       {/* Main Content - Flex para ocupar espacio restante */}
@@ -128,7 +222,12 @@ export default function App() {
               </svg>
               <h2 className="text-sm font-semibold text-white">Subir Imagen</h2>
             </div>
-            <UploadImage onResult={handleResult} setStatus={setStatus} setIsLoading={setIsLoading} />
+            <UploadImage 
+              onResult={handleResult} 
+              setStatus={setStatus} 
+              setIsLoading={setIsLoading}
+              abortControllerRef={abortControllerRef}
+            />
           </section>
 
           {/* Results Grid - Ocupa espacio restante */}
@@ -163,6 +262,7 @@ export default function App() {
                   explanation={explanation}
                   positionAnalysis={positionAnalysis}
                   strategicNotes={strategicNotes}
+                  error={error}
                 />
               </section>
             </div>

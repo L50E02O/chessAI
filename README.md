@@ -45,7 +45,7 @@ cd chess-vision-fast/backend
 2. Crea un archivo `.env`:
 ```env
 GEMINI_API_KEY=tu_api_key_aqui
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-2.0-flash
 MAX_UPLOAD_SIZE=5242880
 ALLOWED_ORIGINS=["http://localhost:5173"]
 ```

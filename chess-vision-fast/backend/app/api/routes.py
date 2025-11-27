@@ -180,6 +180,7 @@ def detect_and_move(
 
     # Validar FEN
     fen_valid = False
+    validation_error = None
     try:
         import chess
         board = chess.Board(detection.fen)
@@ -188,10 +189,13 @@ def detect_and_move(
             len(board.pieces(chess.KING, chess.BLACK)) == 1
         )
         if not has_kings:
-            raise ValueError("Falta al menos un rey")
-        fen_valid = True
+            validation_error = "FEN inválido: falta al menos un rey"
+        else:
+            fen_valid = True
+    except ValueError as e:
+        validation_error = f"FEN inválido: {str(e)}"
     except Exception as e:
-        pass
+        validation_error = f"Error validando FEN: {str(e)}"
 
     if not fen_valid:
         return {
@@ -205,7 +209,7 @@ def detect_and_move(
             'overlay_image_base64': detection.board_image_base64,
             'squares': squares,
             'confidence': detection.confidence,
-            'error': 'FEN inválido detectado',
+            'error': validation_error or 'FEN inválido detectado',
         }
 
     # Obtener análisis de Gemini
