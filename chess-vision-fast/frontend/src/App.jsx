@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import CameraCapture from './components/CameraCapture'
 import UploadImage from './components/UploadImage'
 import BoardPreview from './components/BoardPreview'
 import Controls from './components/Controls'
-import { detectAndMove, bestMove } from './services/api'
+import { bestMove } from './services/api'
 
 export default function App() {
   const [status, setStatus] = useState('Listo')
@@ -11,7 +11,6 @@ export default function App() {
   const [fen, setFen] = useState('')
   const [bestMoveText, setBestMoveText] = useState('')
   const [confidence, setConfidence] = useState(null)
-  const [detector, setDetector] = useState('lichess')
   const [depth, setDepth] = useState(12)
   const [timeMs, setTimeMs] = useState(800)
 
@@ -20,7 +19,7 @@ export default function App() {
     setOverlayImage(data.overlay_image_base64 || data.board_image_base64)
     setBestMoveText(data.best_move || data.uci || '')
     setConfidence(data.confidence)
-    setStatus('Detección actualizada')
+    setStatus('Deteccion actualizada')
   }
 
   const handleManualBestMove = async () => {
@@ -47,18 +46,13 @@ export default function App() {
     link.click()
   }
 
-  const cameraProps = useMemo(
-    () => ({ detector }),
-    [detector],
-  )
-
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-6">
       <header className="mx-auto max-w-5xl space-y-2 text-center">
         <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Chess Vision Fast</p>
-        <h1 className="text-3xl font-semibold text-white">Analiza tu tablero físico en segundos</h1>
+        <h1 className="text-3xl font-semibold text-white">Analiza tu tablero fisico en segundos</h1>
         <p className="text-slate-400">
-          Sube una foto o usa la cámara para detectar las piezas, generar FEN y pedir la mejor jugada desde Stockfish.
+          Sube una foto o usa la camara para detectar las piezas, generar FEN y pedir la mejor jugada desde Stockfish.
         </p>
       </header>
 
@@ -66,12 +60,12 @@ export default function App() {
         <section className="lg:col-span-2 space-y-4">
           <div className="rounded border border-slate-800 bg-slate-900 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Cámara</h2>
+              <h2 className="text-lg font-semibold text-white">Camara</h2>
               <span className="text-xs text-slate-400">{status}</span>
             </div>
-            <CameraCapture onResult={handleResult} setStatus={setStatus} {...cameraProps} />
+            <CameraCapture onResult={handleResult} setStatus={setStatus} />
           </div>
-          <UploadImage onResult={handleResult} setStatus={setStatus} detector={detector} />
+          <UploadImage onResult={handleResult} setStatus={setStatus} />
         </section>
 
         <section className="space-y-4">
@@ -91,8 +85,6 @@ export default function App() {
               setDepth={setDepth}
               timeMs={timeMs}
               setTimeMs={setTimeMs}
-              detector={detector}
-              setDetector={setDetector}
             />
             <button
               onClick={handleManualBestMove}

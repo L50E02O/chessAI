@@ -28,14 +28,29 @@ def _find_stockfish() -> Path:
 
 
 class AppSettings(BaseSettings):
-    detection_backend: str = 'lichess'
+    # Detector backend: 'gemini' (default), 'roboflow' o 'yolo'
+    detection_backend: str = 'gemini'
+    
+    # Google Gemini API (obtener en https://aistudio.google.com/apikey)
+    gemini_api_key: str = ''
+    gemini_model: str = 'gemini-1.5-flash'  # Modelo rapido, bueno para vision
+    
+    # Roboflow API (para tableros fisicos reales)
+    roboflow_api_key: str = ''
+    roboflow_model_id: str = 'chess-pieces-mjzgj/1'
+    
+    # YOLO local (fallback)
     yolo_model_path: Path = Path('./models/yolov8-chess.pt')
+    yolo_confidence: float = 0.4
+    
+    # Stockfish
     stockfish_path: Path = _find_stockfish()
-    allowed_origins: List[str] = ['*']  # Permitir todos los origenes en desarrollo
+    
+    # General
+    allowed_origins: List[str] = ['*']
     max_upload_size: int = 5 * 1024 * 1024
     detection_confidence_threshold: float = 0.45
     frame_throttle_ms: int = 500
-    yolo_confidence: float = 0.4
 
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 

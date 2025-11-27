@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { detectAndMove } from '../services/api'
 
-export default function UploadImage({ onResult, setStatus, detector }) {
+export default function UploadImage({ onResult, setStatus }) {
   const input = useRef(null)
 
   async function handleUpload(event) {
@@ -9,7 +9,7 @@ export default function UploadImage({ onResult, setStatus, detector }) {
     if (!file) return
     setStatus('Analizando imagen...')
     try {
-      const data = await detectAndMove(file, detector)
+      const data = await detectAndMove(file)
       onResult(data)
       setStatus('Imagen procesada')
     } catch (error) {

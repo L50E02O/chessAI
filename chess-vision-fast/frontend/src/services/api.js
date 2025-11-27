@@ -9,27 +9,19 @@ async function _jsonResponse(response) {
   return response.json()
 }
 
-function _withBackend(url, backend) {
-  const endpoint = new URL(url)
-  if (backend) {
-    endpoint.searchParams.set('backend', backend)
-  }
-  return endpoint.toString()
-}
-
-export function detectImage(file, backend = 'lichess') {
+export function detectImage(file) {
   const form = new FormData()
   form.set('file', file)
-  return fetch(_withBackend(`${API_BASE}/api/detect`, backend), {
+  return fetch(`${API_BASE}/api/detect`, {
     method: 'POST',
     body: form,
   }).then(_jsonResponse)
 }
 
-export function detectAndMove(file, backend = 'lichess') {
+export function detectAndMove(file) {
   const form = new FormData()
   form.set('file', file)
-  return fetch(_withBackend(`${API_BASE}/api/detect_and_move`, backend), {
+  return fetch(`${API_BASE}/api/detect_and_move`, {
     method: 'POST',
     body: form,
   }).then(_jsonResponse)
@@ -43,7 +35,7 @@ export function bestMove(fen, options = {}) {
   }).then(_jsonResponse)
 }
 
-export function openStream(onMessage, onError, backend = 'lichess') {
+export function openStream(onMessage, onError) {
   const socket = new WebSocket(`${API_BASE.replace(/^http/, 'ws')}/ws/stream`)
   socket.addEventListener('message', (event) => {
     try {
@@ -55,7 +47,7 @@ export function openStream(onMessage, onError, backend = 'lichess') {
   socket.addEventListener('error', onError)
   return {
     sendFrame(frameBase64) {
-      socket.send(JSON.stringify({ frame: frameBase64, backend }))
+      socket.send(JSON.stringify({ frame: frameBase64 }))
     },
     close: () => socket.close(),
   }

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { openStream } from '../services/api'
 
-export default function CameraCapture({ onResult, setStatus, detector }) {
+export default function CameraCapture({ onResult, setStatus }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -48,7 +48,6 @@ export default function CameraCapture({ onResult, setStatus, detector }) {
           console.error('WebSocket error', error)
           setStatus('Error websocket')
         },
-        detector,
       )
       socketRef.current = socket
       runningRef.current = true
