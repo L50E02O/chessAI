@@ -74,10 +74,12 @@ class StockfishEngine:
         if not self.engine:
             raise RuntimeError('Stockfish no pudo iniciarse')
         _depth = depth or self.default_depth
-        limit = Limit(depth=_depth, time=(time_ms or 500) / 1000 if time_ms else None)
+        # Timeout maximo de 5 segundos para evitar cuelgues
+        _time = min((time_ms or 500) / 1000, 5.0) if time_ms else 2.0
+        limit = Limit(depth=_depth, time=_time)
         result = self.engine.play(self.board, limit=limit)
         san = self.board.san(result.move)
-        score = self.engine.analyse(self.board, limit=limit)['score']
+        score = self.engine.analyse(self.board, limit=Limit(depth=min(_depth, 10), time=1.0))['score']
         cp = score.pov(self.board.turn).score()
         mate = score.pov(self.board.turn).mate()
         return MoveResult(

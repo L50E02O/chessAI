@@ -86,16 +86,49 @@ def detect(
 
 @router.post('/api/best_move')
 def best_move(payload: BestMoveRequest, settings: AppSettings = Depends(get_settings)) -> Dict[str, Any]:
-    engine = _create_stockfish(settings)
-    engine.set_fen(payload.fen)
-    options = payload.options or BestMoveOptions()
-    move = engine.get_best_move(depth=options.depth, time_ms=options.time_ms)
-    return {
-        'best_move': move.best_move,
-        'uci': move.uci,
-        'san': move.san,
-        'score': move.score,
-    }
+    # Validar FEN antes de enviar a Stockfish
+    try:
+        import chess
+        board = chess.Board(payload.fen)
+        has_kings = (
+            len(board.pieces(chess.KING, chess.WHITE)) == 1 and
+            len(board.pieces(chess.KING, chess.BLACK)) == 1
+        )
+        if not has_kings:
+            raise ValueError("Falta al menos un rey")
+    except Exception as e:
+        return {
+            'best_move': None,
+            'uci': None,
+            'san': None,
+            'score': {'cp': None, 'mate': None},
+            'error': f'FEN invalido: {str(e)}',
+        }
+    
+    try:
+        engine = _create_stockfish(settings)
+        engine.set_fen(payload.fen)
+        options = payload.options or BestMoveOptions()
+        move = engine.get_best_move(depth=options.depth, time_ms=options.time_ms)
+        return {
+            'best_move': move.best_move,
+            'uci': move.uci,
+            'san': move.san,
+            'score': move.score,
+        }
+    except Exception as e:
+        return {
+            'best_move': None,
+            'uci': None,
+            'san': None,
+            'score': {'cp': None, 'mate': None},
+            'error': f'Error Stockfish: {str(e)}',
+        }
+    finally:
+        try:
+            engine.close()
+        except Exception:
+            pass
 
 
 @router.post('/api/detect_and_move')
@@ -114,9 +147,50 @@ def detect_and_move(
     detection = detector.detect(image)
     squares = _squares_to_response(detection.squares)
 
+    # Validar FEN antes de enviar a Stockfish (solo sintaxis, no legalidad)
+    try:
+        import chess
+        board = chess.Board(detection.fen)
+        # Solo verificar que tenga ambos reyes (minimo necesario para Stockfish)
+        has_kings = (
+            len(board.pieces(chess.KING, chess.WHITE)) == 1 and
+            len(board.pieces(chess.KING, chess.BLACK)) == 1
+        )
+        if not has_kings:
+            raise ValueError("Falta al menos un rey")
+    except Exception as e:
+        # FEN invalido, devolver sin mejor jugada
+        return {
+            'fen': detection.fen,
+            'best_move': None,
+            'uci': None,
+            'san': None,
+            'score': {'cp': None, 'mate': None},
+            'overlay_image_base64': detection.board_image_base64,
+            'squares': squares,
+            'confidence': detection.confidence,
+            'error': f'FEN detectado no es valido para analisis: {str(e)}',
+        }
+
     engine = _create_stockfish(settings)
     engine.set_fen(detection.fen)
-    move = engine.get_best_move()
+    
+    try:
+        move = engine.get_best_move()
+    except Exception as e:
+        return {
+            'fen': detection.fen,
+            'best_move': None,
+            'uci': None,
+            'san': None,
+            'score': {'cp': None, 'mate': None},
+            'overlay_image_base64': detection.board_image_base64,
+            'squares': squares,
+            'confidence': detection.confidence,
+            'error': f'Error calculando jugada: {str(e)}',
+        }
+    finally:
+        engine.close()
 
     overlay_png, coords = draw_overlay(image, squares, move.best_move)
 
