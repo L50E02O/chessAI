@@ -16,7 +16,11 @@ class AppSettings(BaseSettings):
     detection_confidence_threshold: float = 0.45
     frame_throttle_ms: int = 500
 
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+    model_config = SettingsConfigDict(
+        env_file='.env', 
+        env_file_encoding='utf-8',
+        extra='ignore'  # Ignorar campos extra en .env que ya no se usan
+    )
 
 
 def get_settings() -> AppSettings:

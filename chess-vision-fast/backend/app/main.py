@@ -1,9 +1,7 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 
-from .api import routes, ws
+from .api import routes
 from .utils import get_settings
 
 settings = get_settings()
@@ -25,8 +23,3 @@ app.include_router(routes.router)
 @app.get('/health')
 def health() -> dict:
     return {'status': 'ok'}
-
-
-@app.websocket('/ws/stream')
-async def websocket_endpoint(websocket: WebSocket):
-    await ws.websocket_stream(websocket)

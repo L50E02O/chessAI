@@ -10,45 +10,60 @@ export default function BoardPreview({
   strategicNotes 
 }) {
   return (
-    <div className="space-y-2 rounded border border-slate-800 bg-slate-900 p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-400">FEN</p>
-        <span className="text-xs text-emerald-400">Confianza {confidence?.toFixed(2) ?? 'n/a'}</span>
-      </div>
-      <p className="text-xs font-mono text-slate-200 break-all">{fen || 'Sin detección'}</p>
-      <div className="h-64 w-full overflow-hidden rounded border border-slate-800 bg-black">
-        {overlayImage ? (
-          <img
-            src={`data:image/png;base64,${overlayImage}`}
-            alt="Vista del tablero"
-            className="h-full w-full object-contain"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">
-            Sube una imagen o inicia la cámara
+    <div className="space-y-2">
+      {fen && (
+        <div className="rounded border border-slate-700 bg-slate-900/50 p-2">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">FEN</p>
+            {confidence !== null && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-xs font-semibold text-emerald-400">
+                <div className="h-1 w-1 rounded-full bg-emerald-400"></div>
+                {confidence?.toFixed(2) ?? 'n/a'}
+              </span>
+            )}
           </div>
-        )}
-      </div>
+          <p className="text-xs font-mono text-slate-200 break-all">{fen}</p>
+        </div>
+      )}
+
       {bestMove && (
-        <div className="space-y-2 rounded border border-slate-700 bg-slate-800 p-3">
-          <p className="text-sm font-semibold text-emerald-400">
-            Mejor jugada: <span className="text-white">{bestMove}</span>
-          </p>
+        <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 backdrop-blur-sm">
+          <div className="flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <p className="text-xs font-semibold text-emerald-400">Mejor Jugada</p>
+          </div>
+          <p className="text-base font-bold text-white">{bestMove}</p>
+          
           {explanation && (
-            <p className="text-xs text-slate-300">{explanation}</p>
+            <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
+              <p className="text-xs font-semibold text-slate-400 mb-0.5">Explicación</p>
+              <p className="text-xs text-slate-200 leading-relaxed">{explanation}</p>
+            </div>
           )}
+          
           {positionAnalysis && (
-            <div className="mt-2 border-t border-slate-700 pt-2">
-              <p className="text-xs font-semibold text-slate-400">Análisis de posición:</p>
-              <p className="text-xs text-slate-300">{positionAnalysis}</p>
+            <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
+              <p className="text-xs font-semibold text-slate-400 mb-0.5">Análisis</p>
+              <p className="text-xs text-slate-200 leading-relaxed">{positionAnalysis}</p>
             </div>
           )}
+          
           {strategicNotes && (
-            <div className="mt-2 border-t border-slate-700 pt-2">
-              <p className="text-xs font-semibold text-slate-400">Notas estratégicas:</p>
-              <p className="text-xs text-slate-300">{strategicNotes}</p>
+            <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
+              <p className="text-xs font-semibold text-slate-400 mb-0.5">Estrategia</p>
+              <p className="text-xs text-slate-200 leading-relaxed">{strategicNotes}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {!bestMove && fen && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-center">
+          <p className="text-xs text-amber-400">
+            Haz clic en "Analizar" para obtener la mejor jugada
+          </p>
         </div>
       )}
     </div>

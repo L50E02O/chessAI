@@ -6,6 +6,5 @@ numpy
 opencv-python
 python-chess
 pydantic
-websockets
 pydantic-settings
 google-generativeai

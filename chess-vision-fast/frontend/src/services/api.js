@@ -45,21 +45,3 @@ export function getRetrospective() {
     method: 'GET',
   }).then(_jsonResponse)
 }
-
-export function openStream(onMessage, onError) {
-  const socket = new WebSocket(`${API_BASE.replace(/^http/, 'ws')}/ws/stream`)
-  socket.addEventListener('message', (event) => {
-    try {
-      onMessage(JSON.parse(event.data))
-    } catch (error) {
-      console.error(error)
-    }
-  })
-  socket.addEventListener('error', onError)
-  return {
-    sendFrame(frameBase64) {
-      socket.send(JSON.stringify({ frame: frameBase64 }))
-    },
-    close: () => socket.close(),
-  }
-}

@@ -1,11 +1,10 @@
 import React, { useState } from 'react'
-import CameraCapture from './components/CameraCapture'
 import UploadImage from './components/UploadImage'
 import BoardPreview from './components/BoardPreview'
 import { bestMove, clearContext, getRetrospective } from './services/api'
 
 export default function App() {
-  const [status, setStatus] = useState('Listo')
+  const [status, setStatus] = useState('Listo para analizar')
   const [overlayImage, setOverlayImage] = useState(null)
   const [fen, setFen] = useState('')
   const [bestMoveText, setBestMoveText] = useState('')
@@ -15,6 +14,7 @@ export default function App() {
   const [confidence, setConfidence] = useState(null)
   const [retrospective, setRetrospective] = useState(null)
   const [showRetrospective, setShowRetrospective] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleResult = (data) => {
     setFen(data.fen)
@@ -24,14 +24,16 @@ export default function App() {
     setPositionAnalysis(data.position_analysis || '')
     setStrategicNotes(data.strategic_notes || '')
     setConfidence(data.confidence)
-    setStatus('Detección actualizada')
+    setStatus('Análisis completado')
+    setIsLoading(false)
   }
 
   const handleManualBestMove = async () => {
     if (!fen) {
-      setStatus('No hay FEN disponible')
+      setStatus('Primero sube una imagen del tablero')
       return
     }
+    setIsLoading(true)
     setStatus('Analizando con Gemini GM...')
     try {
       const response = await bestMove(fen)
@@ -43,10 +45,13 @@ export default function App() {
     } catch (error) {
       console.error(error)
       setStatus('Error al analizar la posición')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleClearContext = async () => {
+    setIsLoading(true)
     setStatus('Limpiando contexto...')
     try {
       await clearContext()
@@ -62,10 +67,13 @@ export default function App() {
     } catch (error) {
       console.error(error)
       setStatus('Error al limpiar contexto')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleGetRetrospective = async () => {
+    setIsLoading(true)
     setStatus('Generando retrospectiva...')
     try {
       const response = await getRetrospective()
@@ -75,6 +83,8 @@ export default function App() {
     } catch (error) {
       console.error(error)
       setStatus('Error al obtener retrospectiva')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -82,86 +92,169 @@ export default function App() {
     if (!overlayImage) return
     const link = document.createElement('a')
     link.href = `data:image/png;base64,${overlayImage}`
-    link.download = 'overlay.png'
+    link.download = 'tablero-analizado.png'
     link.click()
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-6">
-      <header className="mx-auto max-w-5xl space-y-2 text-center">
-        <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Chess Vision Fast</p>
-        <h1 className="text-3xl font-semibold text-white">Análisis de Ajedrez con Gemini AI</h1>
-        <p className="text-slate-400">
-          Sube una foto o usa la cámara para detectar las piezas y obtener análisis de un Gran Maestro virtual.
-        </p>
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+      {/* Header - Compacto */}
+      <header className="flex-shrink-0 px-4 py-2 text-center border-b border-slate-700/50">
+        <div className="flex items-center justify-center gap-3">
+          <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Chess Vision Fast</p>
+          </div>
+          <h1 className="text-lg sm:text-xl font-bold text-white">
+            Analisis con{' '}
+            <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
+              Gemini AI
+            </span>
+          </h1>
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <div className={`h-1.5 w-1.5 rounded-full ${isLoading ? 'bg-yellow-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+            <span className="hidden sm:inline">{status}</span>
+          </div>
+        </div>
       </header>
 
-      <main className="mx-auto mt-8 grid max-w-5xl gap-6 lg:grid-cols-3">
-        <section className="lg:col-span-2 space-y-4">
-          <div className="rounded border border-slate-800 bg-slate-900 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Cámara</h2>
-              <span className="text-xs text-slate-400">{status}</span>
+      {/* Main Content - Flex para ocupar espacio restante */}
+      <main className="flex-1 overflow-hidden px-4 py-2">
+        <div className="h-full flex flex-col gap-2 max-w-7xl mx-auto">
+          {/* Upload Section - Compacto */}
+          <section className="flex-shrink-0 rounded-lg border border-slate-700 bg-slate-800/50 backdrop-blur-sm p-3 shadow-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <h2 className="text-sm font-semibold text-white">Subir Imagen</h2>
             </div>
-            <CameraCapture onResult={handleResult} setStatus={setStatus} />
-          </div>
-          <UploadImage onResult={handleResult} setStatus={setStatus} />
-        </section>
+            <UploadImage onResult={handleResult} setStatus={setStatus} setIsLoading={setIsLoading} />
+          </section>
 
-        <section className="space-y-4">
-          <BoardPreview 
-            overlayImage={overlayImage} 
-            fen={fen} 
-            bestMove={bestMoveText}
-            confidence={confidence}
-            explanation={explanation}
-            positionAnalysis={positionAnalysis}
-            strategicNotes={strategicNotes}
-          />
-          <div className="space-y-2 rounded border border-slate-800 bg-slate-900 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Controles</h2>
-              <button
-                onClick={downloadOverlay}
-                className="rounded bg-slate-700 px-3 py-1 text-xs font-semibold text-white"
-              >
-                Descargar overlay
-              </button>
+          {/* Results Grid - Ocupa espacio restante */}
+          {(overlayImage || fen) ? (
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 min-h-0">
+              {/* Board Image */}
+              {overlayImage && (
+                <section className="rounded-lg border border-slate-700 bg-slate-800/50 backdrop-blur-sm p-3 shadow-xl flex flex-col min-h-0">
+                  <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+                    <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h2 className="text-sm font-semibold text-white">Tablero</h2>
+                  </div>
+                  <div className="flex-1 rounded overflow-hidden border border-slate-700 bg-black min-h-0 flex items-center justify-center">
+                    <img
+                      src={`data:image/png;base64,${overlayImage}`}
+                      alt="Tablero analizado"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                </section>
+              )}
+
+              {/* Analysis Panel */}
+              <section className="rounded-lg border border-slate-700 bg-slate-800/50 backdrop-blur-sm p-3 shadow-xl overflow-y-auto min-h-0">
+                <BoardPreview 
+                  overlayImage={overlayImage} 
+                  fen={fen} 
+                  bestMove={bestMoveText}
+                  confidence={confidence}
+                  explanation={explanation}
+                  positionAnalysis={positionAnalysis}
+                  strategicNotes={strategicNotes}
+                />
+              </section>
             </div>
-            <div className="space-y-2">
+          ) : (
+            <div className="flex-1"></div>
+          )}
+
+          {/* Controls - Compacto */}
+          <section className="flex-shrink-0 rounded-lg border border-slate-700 bg-slate-800/50 backdrop-blur-sm p-3 shadow-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              <h2 className="text-sm font-semibold text-white">Controles</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 onClick={handleManualBestMove}
-                className="w-full rounded bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-600"
+                disabled={isLoading || !fen}
+                className="col-span-2 sm:col-span-1 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-2 py-2 text-xs font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
-                Analizar posición
+                {isLoading ? (
+                  <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                )}
+                <span>Analizar</span>
               </button>
+              
               <button
-                onClick={handleClearContext}
-                className="w-full rounded bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+                onClick={downloadOverlay}
+                disabled={!overlayImage}
+                className="rounded-lg bg-slate-700 px-2 py-2 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
-                Limpiar contexto
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Descargar</span>
               </button>
+              
               <button
                 onClick={handleGetRetrospective}
-                className="w-full rounded bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+                disabled={isLoading || !fen}
+                className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-2 text-xs font-semibold text-white shadow-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
-                Ver retrospectiva
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span>Retrospectiva</span>
+              </button>
+              
+              <button
+                onClick={handleClearContext}
+                disabled={isLoading}
+                className="rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-2 py-2 text-xs font-semibold text-white shadow-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span>Limpiar</span>
               </button>
             </div>
+            
+            {/* Retrospective Modal - Compacto */}
             {showRetrospective && retrospective && (
-              <div className="mt-4 rounded border border-slate-700 bg-slate-800 p-3">
-                <h3 className="mb-2 text-sm font-semibold text-blue-400">Retrospectiva de la partida</h3>
-                <p className="text-xs text-slate-300 whitespace-pre-wrap">{retrospective}</p>
-                <button
-                  onClick={() => setShowRetrospective(false)}
-                  className="mt-2 text-xs text-slate-400 hover:text-slate-200"
-                >
-                  Ocultar
-                </button>
+              <div className="mt-2 rounded-lg border border-blue-500/30 bg-blue-500/10 p-2 backdrop-blur-sm max-h-32 overflow-y-auto">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-xs font-semibold text-blue-400 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Retrospectiva
+                  </h3>
+                  <button
+                    onClick={() => setShowRetrospective(false)}
+                    className="text-blue-400 hover:text-blue-300 transition-colors p-0.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">{retrospective}</p>
               </div>
             )}
-          </div>
-        </section>
+          </section>
+        </div>
       </main>
     </div>
   )

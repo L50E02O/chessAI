@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { detectAndMove } from '../services/api'
 
-export default function UploadImage({ onResult, setStatus }) {
+export default function UploadImage({ onResult, setStatus, setIsLoading }) {
   const input = useRef(null)
   const dropZoneRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -9,17 +9,20 @@ export default function UploadImage({ onResult, setStatus }) {
   // Procesar archivo (compartido entre upload, drop y paste)
   async function processFile(file) {
     if (!file || !file.type.startsWith('image/')) {
-      setStatus('Archivo no es una imagen valida')
+      setStatus('Archivo no es una imagen válida')
       return
     }
-    setStatus('Analizando imagen...')
+    if (setIsLoading) setIsLoading(true)
+    setStatus('Analizando imagen con Gemini...')
     try {
       const data = await detectAndMove(file)
       onResult(data)
-      setStatus('Imagen procesada')
+      setStatus('Análisis completado')
     } catch (error) {
       console.error(error)
       setStatus('Error procesando imagen')
+    } finally {
+      if (setIsLoading) setIsLoading(false)
     }
   }
 
@@ -83,16 +86,16 @@ export default function UploadImage({ onResult, setStatus }) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`rounded border-2 border-dashed p-6 text-center transition-colors ${
+      className={`rounded border-2 border-dashed p-3 text-center transition-colors ${
         isDragging
           ? 'border-emerald-500 bg-emerald-500/10'
           : 'border-slate-700 bg-slate-900 hover:border-slate-600'
       }`}
     >
-      <div className="space-y-3">
+      <div className="space-y-2">
         <div className="text-slate-400">
           <svg
-            className="mx-auto h-12 w-12"
+            className="mx-auto h-8 w-8"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -107,7 +110,7 @@ export default function UploadImage({ onResult, setStatus }) {
         </div>
         
         <div>
-          <p className="text-sm font-medium text-slate-300">
+          <p className="text-xs font-medium text-slate-300">
             Arrastra una imagen aqui o{' '}
             <label className="cursor-pointer text-emerald-400 hover:text-emerald-300">
               busca en tu equipo
@@ -120,7 +123,7 @@ export default function UploadImage({ onResult, setStatus }) {
               />
             </label>
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500">
             Tambien puedes pegar con Ctrl+V
           </p>
         </div>
