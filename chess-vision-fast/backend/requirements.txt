@@ -1,0 +1,10 @@
+fastapi[all]
+uvicorn[standard]
+python-multipart
+Pillow
+numpy
+opencv-python
+python-chess
+pydantic
+pydantic-settings
+google-generativeai

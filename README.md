@@ -1,241 +1,169 @@
-# ♟️ ChessVision AI  
-### _Real-time Chess Analysis Assistant_
+# Chess Vision Fast - Analysis with Gemini AI
 
-<div align="center">
+Full-stack solution to detect the state of a physical chess board and get chess analysis using Google Gemini AI as a virtual Grandmaster. Designed to work on Windows/macOS/Linux and offers photo mode with contextual game analysis.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python)
-![Google Gemini](https://img.shields.io/badge/Google%20Gemini-2.5-orange?style=for-the-badge&logo=google)
-![Stockfish](https://img.shields.io/badge/Stockfish-Engine-red?style=for-the-badge&logo=chess)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-green?style=for-the-badge)
+## Features
 
-</div>
+- **Board Detection**: Uses Google Gemini Vision to detect board position from images
+- **GM Analysis**: Gemini acts as a Grandmaster, providing strategic and tactical analysis
+- **Game Context**: Maintains move history and context throughout the game
+- **Retrospective**: Generates retrospective analysis of the complete game
+- **Modern and Friendly Interface**: React 18 + Vite + Tailwind with intuitive design
+- **Multiple Upload Methods**: Drag and drop, file browser, or paste with Ctrl+V
+- **No Local Dependencies**: No local models required, only Gemini API
 
-> **ChessVision AI** combines the artificial vision of **Google Gemini 2.5** with the power of the **Stockfish** engine to analyze chess positions in real-time from your screen.  
-> Capture, analyze and get the best move with a single keyboard shortcut.
+## Structure
 
----
-
-## 📚 Table of Contents
-- [🚀 Overview](#-overview)
-- [✨ Features](#-features)
-- [🧠 How It Works](#-how-it-works)
-- [🛠 Installation](#-installation)
-- [⚙️ Configuration](#️-configuration)
-- [🎮 Usage](#-usage)
-- [🏗 Architecture](#-architecture)
-- [🐛 Troubleshooting](#-troubleshooting)
-- [🗺 Roadmap](#-roadmap)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
-
----
-
-## 🚀 Overview
-
-**ChessVision AI** is a desktop application that allows you to analyze chess positions directly from any board visible on your screen.  
-Just press **Ctrl + Q** and the AI will:
-1. Capture the screen
-2. Detect the board
-3. Extract the position (FEN)
-4. Analyze with **Stockfish**
-5. Show the best move 💡
-
-Perfect for:
-- 🎓 Studying openings and improving your level
-- 🔍 Analyzing online games in real-time
-- ⚡ Getting instant suggestions
-- 🎯 Compatible with Chess.com, Lichess and more
-
----
-
-## ✨ Main Features
-
-| Type | Description |
-|------|--------------|
-| 🖼️ **Smart Recognition** | Automatically detects the board and pieces from screenshots. |
-| 🤖 **AI Vision** | Uses **Google Gemini 2.5 Flash** to recognize positions accurately. |
-| 🧠 **Stockfish Engine** | Professional analysis with configurable depth. |
-| ⚡ **Real-time Performance** | Results in just seconds. |
-| ⌨️ **Global Shortcut (`Ctrl+Q`)** | Instant capture from any window. |
-| 🔄 **OpenCV Fallback** | Uses classical vision if AI fails. |
-| 🆓 **Free** | Compatible with Google Gemini API free plan. |
-
----
-
-## 🛠 Installation
-
-### 🔧 Requirements
-- **Python** 3.8 or higher  
-- **Windows 10/11** (main support)  
-- **Internet Connection** (for Google Gemini API)  
-- **Stockfish** installed on your system  
-
-### 1️⃣ Clone the repository
-```bash
-git clone https://github.com/L50E02O/chessAI.git
-cd chessAI
+```
+chess-vision-fast/
+├── backend/          # FastAPI + Google Gemini API
+│   ├── app/         # Main application
+│   │   ├── api/     # Routes and WebSocket
+│   │   ├── services/# Chess analysis service
+│   │   └── ...      # Detector, overlay, etc.
+│   └── tests/       # Unit tests
+├── frontend/        # React 18 + Vite + Tailwind
+│   └── src/         # Components and services
+└── examples/        # Example images
 ```
 
-### 2️⃣ Install dependencies
+## Requirements
+
+1. **Python 3.12+** and `pip install -r chess-vision-fast/backend/requirements.txt`
+2. **Node 18+** (for frontend: `npm install` inside `chess-vision-fast/frontend`)
+3. **Google Gemini API Key** (get it at https://aistudio.google.com/apikey)
+
+## Setup
+
+### Backend
+
+1. Navigate to the backend folder:
+```bash
+cd chess-vision-fast/backend
+```
+
+2. Create a `.env` file:
+```env
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-2.0-flash
+MAX_UPLOAD_SIZE=5242880
+ALLOWED_ORIGINS=["http://localhost:5173"]
+```
+
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Get your Gemini API Key
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Sign in with your Google account
-3. Create a new API key
-4. Copy the key
-
-### 4️⃣ Configure the environment
-Copy the example file and add your key:
+4. Start the backend:
 ```bash
-copy .env.example .env
-```
-Edit `.env`:
-```ini
-GEMINI_API_KEY=your_api_key_here
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-### 5️⃣ Stockfish (Windows)
-Por defecto, el sistema intentará detectar Stockfish. Si no lo encuentra en Windows, hará un **auto-descarga** segura del binario oficial (AVX2) y lo extraerá en `external/stockfish_win/`.
-
-Enlace utilizado para la descarga:  
-<https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-windows-x86-64-avx2.zip>
-
-Opcionalmente puedes establecer la ruta manualmente si prefieres tu propia instalación:
-#
-```ini
-STOCKFISH_PATH=C:\\ruta\\a\\stockfish.exe
-```
-
----
-
-## 🎮 Usage
-
-Run the application:
+Or use the Python script:
 ```bash
-python src\main.py
+python run_backend.py
 ```
 
-**Controls:**
-| Shortcut | Action |
-|--------|--------|
-| `Ctrl + Q` | Capture screen and analyze |
-| `ESC` | Exit the application |
+### Frontend
 
-You'll see something like:
-```
-🚀 ChessVision started
-⌨️ Listening for shortcut <Ctrl+Q>...
+1. Navigate to the frontend folder:
+```bash
+cd chess-vision-fast/frontend
 ```
 
----
-
-## ⚙️ Advanced Configuration
-
-You can modify parameters in `src/utils/config.py`:
-
-```python
-# Stockfish is now handled automatically - no path configuration needed!
-# The system uses python-stockfish which handles everything automatically
+2. Install dependencies:
+```bash
+npm install
 ```
 
-### 🌐 Optional variables (Supabase)
-```ini
-SUPABASE_URL=your_url
-SUPABASE_ANON_KEY=your_key
-SUPABASE_BUCKET=boards
+3. Start the frontend:
+```bash
+npm run dev
 ```
 
-> 🧹 The system keeps only the last **10 captures** in Supabase, automatically deleting older ones.
-
----
-
-## 🏗 Project Architecture
-
-```
-chessAI/
-├── src/
-│   ├── main.py                 # Entry point
-│   ├── desktop_capture.py      # Screen capture
-│   ├── ocr/
-│   │   ├── gemini_vision.py    # Gemini Vision integration
-│   │   ├── board_detection.py  # OpenCV fallback
-│   │   └── fen_generator.py    # FEN generator
-│   ├── engine/
-│   │   └── stockfish_engine.py # Stockfish communication
-│   └── utils/
-│       ├── config.py           # General configuration
-│       ├── helpers.py          # Helper functions
-│       └── supabase_client.py  # Supabase client
-├── requirements.txt
-├── .env.example
-├── install.bat
-├── run.bat
-└── README.md
+Or use the Python script:
+```bash
+python run_frontend.py
 ```
 
----
+## API Endpoints
 
-## 🐛 Troubleshooting
+- `POST /api/detect`: Detects board position and returns FEN
+- `POST /api/best_move`: Gets best move with complete Gemini analysis
+- `POST /api/detect_and_move`: Combines detection and analysis in a single call
+- `POST /api/clear_context`: Clears context of current game
+- `GET /api/retrospective`: Gets retrospective of complete game
+- `POST /api/change_model`: Changes the Gemini model to use
+- `GET /api/current_model`: Gets the currently active model
 
-| Error | Solution |
-|-------|-----------|
-| ❌ `GEMINI_API_KEY not configured` | Check your `.env` file and restart the app. |
-| ⚙️ `Stockfish not responding` | The system will download Stockfish automatically. Make sure you have internet connection. |
-| ⌨️ `Shortcut not working` | Run the terminal as administrator or change the shortcut. |
-| ⚠️ `Gemini returns incorrect FEN` | Make sure the board is visible and no windows are on top. |
-| 📥 `Stockfish download failed` | Check your internet connection. On Windows, Stockfish downloads automatically. |
+## Usage
 
----
+1. Start backend and frontend in separate terminals
+2. Open the UI in your browser (default http://localhost:5173)
+3. Upload a board image (drag and drop, file browser, or paste with Ctrl+V)
+4. The system will detect the position and Gemini will analyze the best move automatically
+5. Use **"Analyze Position"** to re-analyze the current position
+6. Use **"Retrospective"** to get complete game analysis
+7. Use **"Clear Context"** to start a new game
+8. Use the model selector to switch between Gemini 2.0 Flash, 2.5 Flash, and 2.5 Pro
 
-## 🗺 Roadmap
+## Analysis Features
 
-### ✅ Current version (v1.0)
-- ✔️ Gemini Vision + Stockfish integration  
-- ✔️ OpenCV fallback detection  
-- ✔️ Multi-monitor and global shortcut  
+Gemini analysis includes:
+- **Best Move**: In UCI format (e.g., e2e4) and standard algebraic notation (SAN, e.g., e4)
+- **Explanation**: Why it's the best move
+- **Position Analysis**: Evaluation of current position
+- **Strategic Notes**: Tactical and strategic considerations
+- **Context**: Maintains move history during the game
 
-### 🚧 In development (v1.1)
-- 📈 Advanced FEN validation  
-- 💾 Analysis history  
-- 🧩 Basic GUI  
+## Technologies
 
-### 🔮 Future (v2.0+)
-- 📱 Mobile app (Android/iOS)  
-- 💬 Streaming integration (Twitch/YouTube)  
-- 🌍 Offline mode with cache  
+### Backend
+- FastAPI - Modern and fast web framework
+- Google Gemini AI - Chess detection and analysis
+- Python Chess - Position validation and manipulation
 
----
+### Frontend
+- React 18 - UI library
+- Vite - Fast build tool
+- Tailwind CSS - Modern styles
 
-## 🤝 Contributing
+## Docker (Optional)
 
-Contributions are welcome! 💪  
-You can:
-- Report bugs or suggest improvements  
-- Submit PRs with new features  
-- Improve documentation  
+To use Docker:
 
 ```bash
-git checkout -b feature/new-feature
-git commit -m "Added new functionality"
-git push origin feature/new-feature
+cd chess-vision-fast/backend
+docker-compose up --build
 ```
 
----
+The app exposes:
+- Frontend: http://localhost:5173
+- Backend API/WS: http://localhost:8000
 
-## 📄 License
+## Tests
 
-This project is licensed under **MIT**.  
-See the [LICENSE](LICENSE) file for more details.
+From `chess-vision-fast/backend/` run:
 
----
+```bash
+python -m pytest tests/
+```
 
-<div align="center">
-  
-**Made with ❤️ by [L50E02O](https://github.com/L50E02O)**  
-_Analyze. Learn. Improve your chess._ ♟️  
+## Recent Changes
 
-</div>
+- ✅ Removed Stockfish - Now uses only Gemini AI
+- ✅ Removed YOLO - Only detection with Gemini Vision
+- ✅ Removed Roboflow - Simplified to only Gemini
+- ✅ Added game context - Maintains move history
+- ✅ Added retrospective - Complete game analysis
+- ✅ Simplified code - Cleaner and more maintainable architecture
+- ✅ Added model selector - Switch between Gemini 2.0 Flash, 2.5 Flash, and 2.5 Pro
+
+## License
+
+MIT (see LICENSE).
+
+## Author
+
+Leo Holguin - 2025
