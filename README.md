@@ -1,166 +1,169 @@
-# Chess Vision Fast - Análisis con Gemini AI
+# Chess Vision Fast - Analysis with Gemini AI
 
-Solución full-stack para detectar el estado de un tablero físico y obtener análisis de ajedrez usando Google Gemini AI como Gran Maestro virtual. Está diseñada para funcionar en Windows/macOS/Linux y ofrece modos foto y webcam con análisis contextual de partidas.
+Full-stack solution to detect the state of a physical chess board and get chess analysis using Google Gemini AI as a virtual Grandmaster. Designed to work on Windows/macOS/Linux and offers photo mode with contextual game analysis.
 
-## Características
+## Features
 
-- **Detección de tablero**: Usa Google Gemini Vision para detectar la posición del tablero desde imágenes
-- **Análisis de GM**: Gemini actúa como Gran Maestro, proporcionando análisis estratégico y táctico
-- **Contexto de partida**: Mantiene el historial de movimientos y contexto durante toda la partida
-- **Retrospectiva**: Genera análisis retrospectivo de la partida completa
-- **Interfaz moderna y amigable**: React 18 + Vite + Tailwind con diseño intuitivo
-- **Múltiples formas de subir**: Arrastra y suelta, busca archivo, o pega con Ctrl+V
-- **Sin dependencias locales**: No requiere modelos locales, solo la API de Gemini
+- **Board Detection**: Uses Google Gemini Vision to detect board position from images
+- **GM Analysis**: Gemini acts as a Grandmaster, providing strategic and tactical analysis
+- **Game Context**: Maintains move history and context throughout the game
+- **Retrospective**: Generates retrospective analysis of the complete game
+- **Modern and Friendly Interface**: React 18 + Vite + Tailwind with intuitive design
+- **Multiple Upload Methods**: Drag and drop, file browser, or paste with Ctrl+V
+- **No Local Dependencies**: No local models required, only Gemini API
 
-## Estructura
+## Structure
 
 ```
 chess-vision-fast/
 ├── backend/          # FastAPI + Google Gemini API
-│   ├── app/         # Aplicación principal
-│   │   ├── api/     # Rutas y WebSocket
-│   │   ├── services/# Servicio de análisis de ajedrez
+│   ├── app/         # Main application
+│   │   ├── api/     # Routes and WebSocket
+│   │   ├── services/# Chess analysis service
 │   │   └── ...      # Detector, overlay, etc.
-│   └── tests/       # Tests unitarios
+│   └── tests/       # Unit tests
 ├── frontend/        # React 18 + Vite + Tailwind
-│   └── src/         # Componentes y servicios
-└── examples/        # Imágenes de ejemplo
+│   └── src/         # Components and services
+└── examples/        # Example images
 ```
 
-## Requisitos
+## Requirements
 
-1. **Python 3.12+** y `pip install -r chess-vision-fast/backend/requirements.txt`
-2. **Node 18+** (para frontend: `npm install` dentro de `chess-vision-fast/frontend`)
-3. **API Key de Google Gemini** (obtener en https://aistudio.google.com/apikey)
+1. **Python 3.12+** and `pip install -r chess-vision-fast/backend/requirements.txt`
+2. **Node 18+** (for frontend: `npm install` inside `chess-vision-fast/frontend`)
+3. **Google Gemini API Key** (get it at https://aistudio.google.com/apikey)
 
-## Configuración
+## Setup
 
 ### Backend
 
-1. Navega a la carpeta del backend:
+1. Navigate to the backend folder:
 ```bash
 cd chess-vision-fast/backend
 ```
 
-2. Crea un archivo `.env`:
+2. Create a `.env` file:
 ```env
-GEMINI_API_KEY=tu_api_key_aqui
+GEMINI_API_KEY=your_api_key_here
 GEMINI_MODEL=gemini-2.0-flash
 MAX_UPLOAD_SIZE=5242880
 ALLOWED_ORIGINS=["http://localhost:5173"]
 ```
 
-3. Instala las dependencias:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Arranca el backend:
+4. Start the backend:
 ```bash
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-O usa el script de Python:
+Or use the Python script:
 ```bash
 python run_backend.py
 ```
 
 ### Frontend
 
-1. Navega a la carpeta del frontend:
+1. Navigate to the frontend folder:
 ```bash
 cd chess-vision-fast/frontend
 ```
 
-2. Instala las dependencias:
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Arranca el frontend:
+3. Start the frontend:
 ```bash
 npm run dev
 ```
 
-O usa el script de Python:
+Or use the Python script:
 ```bash
 python run_frontend.py
 ```
 
-## Endpoints de la API
+## API Endpoints
 
-- `POST /api/detect`: Detecta la posición del tablero y retorna el FEN
-- `POST /api/best_move`: Obtiene la mejor jugada con análisis completo de Gemini
-- `POST /api/detect_and_move`: Combina detección y análisis en una sola llamada
-- `POST /api/clear_context`: Limpia el contexto de la partida actual
-- `GET /api/retrospective`: Obtiene retrospectiva de la partida completa
+- `POST /api/detect`: Detects board position and returns FEN
+- `POST /api/best_move`: Gets best move with complete Gemini analysis
+- `POST /api/detect_and_move`: Combines detection and analysis in a single call
+- `POST /api/clear_context`: Clears context of current game
+- `GET /api/retrospective`: Gets retrospective of complete game
+- `POST /api/change_model`: Changes the Gemini model to use
+- `GET /api/current_model`: Gets the currently active model
 
-## Uso
+## Usage
 
-1. Inicia backend y frontend en terminales separadas
-2. Abre la UI en el navegador (por defecto http://localhost:5173)
-3. Sube una imagen del tablero (arrastra y suelta, busca archivo, o pega con Ctrl+V)
-4. El sistema detectará la posición y Gemini analizará la mejor jugada automáticamente
-5. Usa **"Analizar Posición"** para re-analizar la posición actual
-6. Usa **"Ver retrospectiva"** para obtener análisis completo de la partida
-7. Usa **"Limpiar contexto"** para empezar una nueva partida
+1. Start backend and frontend in separate terminals
+2. Open the UI in your browser (default http://localhost:5173)
+3. Upload a board image (drag and drop, file browser, or paste with Ctrl+V)
+4. The system will detect the position and Gemini will analyze the best move automatically
+5. Use **"Analyze Position"** to re-analyze the current position
+6. Use **"Retrospective"** to get complete game analysis
+7. Use **"Clear Context"** to start a new game
+8. Use the model selector to switch between Gemini 2.0 Flash, 2.5 Flash, and 2.5 Pro
 
-## Características del Análisis
+## Analysis Features
 
-El análisis de Gemini incluye:
-- **Mejor jugada**: En formato UCI (ej: e2e4) y notación algebraica estándar (SAN, ej: e4)
-- **Explicación**: Por qué es la mejor jugada
-- **Análisis de posición**: Evaluación de la posición actual
-- **Notas estratégicas**: Consideraciones tácticas y estratégicas
-- **Contexto**: Mantiene el historial de movimientos durante la partida
+Gemini analysis includes:
+- **Best Move**: In UCI format (e.g., e2e4) and standard algebraic notation (SAN, e.g., e4)
+- **Explanation**: Why it's the best move
+- **Position Analysis**: Evaluation of current position
+- **Strategic Notes**: Tactical and strategic considerations
+- **Context**: Maintains move history during the game
 
-## Tecnologías
+## Technologies
 
 ### Backend
-- FastAPI - Framework web moderno y rápido
-- Google Gemini AI - Detección y análisis de ajedrez
-- Python Chess - Validación y manipulación de posiciones
+- FastAPI - Modern and fast web framework
+- Google Gemini AI - Chess detection and analysis
+- Python Chess - Position validation and manipulation
 
 ### Frontend
-- React 18 - Biblioteca UI
-- Vite - Build tool rápido
-- Tailwind CSS - Estilos modernos
-- WebSocket API - Comunicación en tiempo real
+- React 18 - UI library
+- Vite - Fast build tool
+- Tailwind CSS - Modern styles
 
-## Docker (Opcional)
+## Docker (Optional)
 
-Para usar Docker:
+To use Docker:
 
 ```bash
 cd chess-vision-fast/backend
 docker-compose up --build
 ```
 
-La app expone:
+The app exposes:
 - Frontend: http://localhost:5173
 - Backend API/WS: http://localhost:8000
 
 ## Tests
 
-Desde `chess-vision-fast/backend/` ejecuta:
+From `chess-vision-fast/backend/` run:
 
 ```bash
 python -m pytest tests/
 ```
 
-## Cambios Recientes
+## Recent Changes
 
-- ✅ Eliminado Stockfish - Ahora usa solo Gemini AI
-- ✅ Eliminado YOLO - Solo detección con Gemini Vision
-- ✅ Eliminado Roboflow - Simplificado a solo Gemini
-- ✅ Agregado contexto de partida - Mantiene historial de movimientos
-- ✅ Agregada retrospectiva - Análisis completo de la partida
-- ✅ Simplificado código - Arquitectura más limpia y mantenible
+- ✅ Removed Stockfish - Now uses only Gemini AI
+- ✅ Removed YOLO - Only detection with Gemini Vision
+- ✅ Removed Roboflow - Simplified to only Gemini
+- ✅ Added game context - Maintains move history
+- ✅ Added retrospective - Complete game analysis
+- ✅ Simplified code - Cleaner and more maintainable architecture
+- ✅ Added model selector - Switch between Gemini 2.0 Flash, 2.5 Flash, and 2.5 Pro
 
-## Licencia
+## License
 
-MIT (ver LICENSE).
+MIT (see LICENSE).
 
-## Autor
+## Author
 
 Leo Holguin - 2025

@@ -14,7 +14,7 @@ from .utils import AppSettings
 
 logger = logging.getLogger(__name__)
 
-# Mapeo de etiquetas de piezas a notacion FEN (para compatibilidad)
+# Mapping of piece labels to FEN notation (for compatibility)
 PieceMap = {
     'white-pawn': 'P', 'white_pawn': 'P', 'wp': 'P',
     'white-rook': 'R', 'white_rook': 'R', 'wr': 'R',
@@ -95,36 +95,39 @@ def fen_from_detections(squares: List[SquareDetection]) -> str:
 
 
 class DetectorFactory:
-    """Fabrica de detectores. Usa Gemini Vision para detección de tableros."""
+    """Detector factory. Uses Gemini Vision for board detection."""
     
     def __init__(self, settings: AppSettings, override_backend: Optional[str] = None) -> None:
         self.settings = settings
-        # override_backend se mantiene por compatibilidad pero no se usa
+        # override_backend is kept for compatibility but not used
 
     def create(self) -> BaseDetector:
-        # Solo usa Gemini para detección
+        # Only uses Gemini for detection
         return GeminiVisionDetector(self.settings)
 
 
 class GeminiVisionDetector(BaseDetector):
-    """Detector usando Google Gemini Vision. Ideal para capturas de pantalla."""
+    """Detector using Google Gemini Vision. Ideal for screenshots."""
     
     def __init__(self, settings: AppSettings) -> None:
         super().__init__(settings)
         self._detector = None
+        self._cached_model = None
     
     def _get_detector(self):
-        if self._detector is None:
+        # Recreate detector if model changed
+        if self._detector is None or self._cached_model != self.settings.gemini_model:
             from .gemini_detector import GeminiDetector
             self._detector = GeminiDetector(
                 api_key=self.settings.gemini_api_key,
                 model=self.settings.gemini_model
             )
+            self._cached_model = self.settings.gemini_model
         return self._detector
     
     def detect(self, image: Image.Image) -> DetectionResult:
         if not self.settings.gemini_api_key:
-            logger.warning("Gemini API key no configurada")
+            logger.warning("Gemini API key not configured")
             return self._empty_result(image)
         
         try:
@@ -132,34 +135,34 @@ class GeminiVisionDetector(BaseDetector):
             fen = detector.detect_fen(image, timeout=15.0)
             
             if not fen:
-                logger.warning("Gemini no pudo detectar FEN")
+                logger.warning("Gemini could not detect FEN")
                 return self._empty_result(image)
             
-            # Crear overlay con el tablero detectado
+            # Create overlay with detected board
             overlay = self._create_overlay(image, fen)
             
             return DetectionResult(
                 fen=fen,
                 board_image_base64=self._image_to_base64(overlay),
-                squares=[],  # Gemini no devuelve bboxes individuales
+                squares=[],  # Gemini does not return individual bboxes
                 confidence=0.9,
             )
         except Exception as e:
-            logger.error(f"Error en GeminiVisionDetector: {e}")
+            logger.error(f"Error in GeminiVisionDetector: {e}")
             return self._empty_result(image)
     
     def _create_overlay(self, image: Image.Image, fen: str) -> Image.Image:
-        """Crea overlay mostrando el FEN detectado."""
+        """Creates overlay showing detected FEN."""
         overlay = image.convert('RGBA')
         draw = ImageDraw.Draw(overlay)
         
-        # Dibujar texto con el FEN
+        # Draw text with FEN
         try:
             font = ImageFont.load_default()
         except Exception:
             font = None
         
-        # Fondo semi-transparente para el texto
+        # Semi-transparent background for text
         text = f"FEN: {fen.split()[0][:30]}..."
         draw.rectangle([0, 0, overlay.width, 25], fill=(0, 0, 0, 180))
         draw.text((5, 5), text, fill='lime', font=font)

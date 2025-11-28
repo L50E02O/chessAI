@@ -40,27 +40,27 @@ export default function BoardPreview({
             <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <p className="text-xs font-semibold text-emerald-400">Mejor Jugada</p>
+            <p className="text-xs font-semibold text-emerald-400">Best Move</p>
           </div>
           <p className="text-base font-bold text-white">{bestMove}</p>
           
           {explanation && (
             <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
-              <p className="text-xs font-semibold text-slate-400 mb-0.5">Explicación</p>
+              <p className="text-xs font-semibold text-slate-400 mb-0.5">Explanation</p>
               <p className="text-xs text-slate-200 leading-relaxed">{explanation}</p>
             </div>
           )}
           
           {positionAnalysis && (
             <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
-              <p className="text-xs font-semibold text-slate-400 mb-0.5">Análisis</p>
+              <p className="text-xs font-semibold text-slate-400 mb-0.5">Analysis</p>
               <p className="text-xs text-slate-200 leading-relaxed">{positionAnalysis}</p>
             </div>
           )}
           
           {strategicNotes && (
             <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
-              <p className="text-xs font-semibold text-slate-400 mb-0.5">Estrategia</p>
+              <p className="text-xs font-semibold text-slate-400 mb-0.5">Strategy</p>
               <p className="text-xs text-slate-200 leading-relaxed">{strategicNotes}</p>
             </div>
           )}
@@ -70,7 +70,7 @@ export default function BoardPreview({
       {!bestMove && fen && !error && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-center">
           <p className="text-xs text-amber-400">
-            Haz clic en "Analizar" para obtener la mejor jugada
+            Click "Analyze" to get the best move
           </p>
         </div>
       )}

@@ -1,6 +1,6 @@
 """
-Detector de tableros de ajedrez usando Google Gemini Vision.
-Optimizado para evitar cuelgues y manejar errores graciosamente.
+Chess board detector using Google Gemini Vision.
+Optimized to avoid hangs and handle errors gracefully.
 """
 import base64
 import io
@@ -13,7 +13,7 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# Prompt optimizado para Gemini
+# Optimized prompt for Gemini
 GEMINI_PROMPT = """Analyze this chess board image carefully and return ONLY the FEN notation.
 
 IMPORTANT: Pay special attention to ALL 8 rows, especially the top row (rank 8) and bottom row (rank 1).
@@ -37,7 +37,7 @@ Return ONLY the FEN string:"""
 
 
 class GeminiDetector:
-    """Detector usando Google Gemini Vision API."""
+    """Detector using Google Gemini Vision API."""
     
     def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
         self.api_key = api_key
@@ -47,142 +47,172 @@ class GeminiDetector:
             "temperature": 0.1,
             "top_p": 0.95,
             "top_k": 40,
-            "max_output_tokens": 256,
+            "max_output_tokens": 512,
         }
+        # Minimum safety configuration for chess images
+        try:
+            from google.generativeai.types import HarmCategory, HarmBlockThreshold
+            self._safety_settings = {
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            }
+        except ImportError:
+            # Fallback for older versions
+            self._safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+            ]
     
     def _get_model(self):
-        """Inicializa el modelo de forma lazy."""
+        """Initializes the model lazily."""
         if self._model is None:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
             self._model = genai.GenerativeModel(
                 model_name=self.model_name,
                 generation_config=self._generation_config,
+                safety_settings=self._safety_settings,
             )
         return self._model
     
     def detect_fen(self, image: Image.Image, timeout: float = 15.0) -> Optional[str]:
         """
-        Detecta el FEN de una imagen de tablero.
+        Detects FEN from a board image.
         
         Args:
-            image: Imagen PIL del tablero
-            timeout: Timeout en segundos (default 15s)
+            image: PIL image of the board
+            timeout: Timeout in seconds (default 15s)
             
         Returns:
-            FEN string o None si falla
+            FEN string or None if it fails
         """
         try:
             model = self._get_model()
             
-            # Agregar padding para evitar recorte de bordes
+            # Add padding to avoid edge cropping
             padding = 10
             padded = Image.new('RGB', (image.width + padding*2, image.height + padding*2), (50, 50, 50))
             padded.paste(image, (padding, padding))
             image = padded
             
-            # Redimensionar imagen si es muy grande (evita cuelgues)
+            # Resize image if too large (avoids hangs)
             max_size = 1024
             if max(image.size) > max_size:
                 ratio = max_size / max(image.size)
                 new_size = (int(image.width * ratio), int(image.height * ratio))
                 image = image.resize(new_size, Image.Resampling.LANCZOS)
             
-            # Convertir a RGB si es necesario
+            # Convert to RGB if necessary
             if image.mode != 'RGB':
                 image = image.convert('RGB')
             
-            # Generar respuesta
+            # Generate response
             response = model.generate_content(
                 [GEMINI_PROMPT, image],
                 request_options={"timeout": timeout}
             )
             
-            if not response.text:
-                logger.warning("Gemini no devolvio texto")
+            # Check if response was blocked
+            if not response.candidates:
+                logger.warning("Gemini did not return candidates (possible block)")
                 return None
             
-            # Extraer FEN del texto
+            candidate = response.candidates[0]
+            if candidate.finish_reason != 1:  # 1 = STOP (normal)
+                reason_map = {2: "SAFETY", 3: "RECITATION", 4: "OTHER"}
+                reason = reason_map.get(candidate.finish_reason, f"CODE_{candidate.finish_reason}")
+                logger.warning(f"Gemini blocked response: {reason}")
+                return None
+            
+            if not response.text:
+                logger.warning("Gemini did not return text")
+                return None
+            
+            # Extract FEN from text
             fen = self._extract_fen(response.text)
             if not fen:
-                logger.warning(f"No se pudo extraer FEN de: {response.text[:100]}")
+                logger.warning(f"Could not extract FEN from: {response.text[:100]}")
                 return None
             
-            # Intentar reparar errores de conteo
+            # Try to repair counting errors
             fen = self._try_fix_fen(fen)
             
-            # Validar FEN reparado con python-chess para mejor feedback
+            # Validate repaired FEN with python-chess for better feedback
             try:
                 import chess
                 board = chess.Board(fen)
-                # Verificar que tenga ambos reyes
+                # Verify it has both kings
                 has_kings = (
                     len(board.pieces(chess.KING, chess.WHITE)) == 1 and
                     len(board.pieces(chess.KING, chess.BLACK)) == 1
                 )
                 if has_kings:
-                    logger.info(f"FEN detectado y validado: {fen}")
+                    logger.info(f"FEN detected and validated: {fen}")
                     return fen
                 else:
-                    logger.warning(f"FEN sin ambos reyes: {fen}")
+                    logger.warning(f"FEN without both kings: {fen}")
             except ValueError as e:
-                logger.warning(f"FEN inválido (python-chess): {fen} - Error: {str(e)}")
+                logger.warning(f"Invalid FEN (python-chess): {fen} - Error: {str(e)}")
             except Exception as e:
-                logger.warning(f"Error validando FEN con python-chess: {fen} - Error: {str(e)}")
+                logger.warning(f"Error validating FEN with python-chess: {fen} - Error: {str(e)}")
             
-            # Si falla validación con python-chess, intentar validación básica
+            # If python-chess validation fails, try basic validation
             if self._validate_fen(fen):
-                logger.info(f"FEN detectado (validación básica): {fen}")
+                logger.info(f"FEN detected (basic validation): {fen}")
                 return fen
             
-            logger.warning(f"FEN inválido después de reparación: {fen}")
+            logger.warning(f"Invalid FEN after repair: {fen}")
             return None
             
         except Exception as e:
-            logger.error(f"Error en Gemini: {e}")
+            logger.error(f"Error in Gemini: {e}")
             return None
     
     def _extract_fen(self, text: str) -> Optional[str]:
-        """Extrae el FEN del texto de respuesta."""
+        """Extracts FEN from response text."""
         text = text.strip()
         
-        # Limpiar posibles marcadores de código o texto adicional
+        # Clean possible code markers or additional text
         if text.startswith('```'):
             text = text.split('\n', 1)[1] if '\n' in text else text[3:]
         if text.endswith('```'):
             text = text[:-3]
         text = text.strip()
         
-        # Limpiar caracteres no válidos del tablero (solo permitir rnbqkpRNBQKP12345678/)
-        # Primero extraer el tablero
+        # Clean invalid characters from board (only allow rnbqkpRNBQKP12345678/)
+        # First extract the board
         lines = text.split('\n')
         for line in lines:
             line = line.strip()
             if not line:
                 continue
             
-            # Buscar patrón de tablero (8 filas separadas por /)
+            # Search for board pattern (8 rows separated by /)
             parts = line.split()
             if len(parts) >= 1:
                 board_part = parts[0]
                 
-                # Limpiar caracteres inválidos del tablero
-                # Reemplazar caracteres problemáticos comunes que Gemini puede confundir
-                # 'h' podría ser confundido con 'b' (bishop) o 'n' (knight)
-                # 'H' podría ser confundido con 'B' o 'N'
-                # Intentar corregir errores comunes
-                board_part = board_part.replace('h', 'b')  # 'h' minúscula probablemente es 'b' (bishop)
-                board_part = board_part.replace('H', 'B')  # 'H' mayúscula probablemente es 'B'
-                board_part = board_part.replace('0', '')  # Eliminar ceros (no válidos en FEN)
-                board_part = re.sub(r'[^rnbqkpRNBQKP12345678/]', '', board_part)  # Solo caracteres válidos
+                # Clean invalid characters from board
+                # Replace common problematic characters that Gemini may confuse
+                # 'h' could be confused with 'b' (bishop) or 'n' (knight)
+                # 'H' could be confused with 'B' or 'N'
+                # Try to correct common errors
+                board_part = board_part.replace('h', 'b')  # lowercase 'h' probably is 'b' (bishop)
+                board_part = board_part.replace('H', 'B')  # uppercase 'H' probably is 'B'
+                board_part = board_part.replace('0', '')  # Remove zeros (not valid in FEN)
+                board_part = re.sub(r'[^rnbqkpRNBQKP12345678/]', '', board_part)  # Only valid characters
                 
                 if '/' in board_part:
                     rows = board_part.split('/')
                     if len(rows) == 8:
-                        # Validar que cada fila tenga solo caracteres válidos
+                        # Validate that each row has only valid characters
                         valid_rows = []
                         for row in rows:
-                            # Limpiar cada fila
+                            # Clean each row
                             clean_row = re.sub(r'[^rnbqkpRNBQKP12345678]', '', row)
                             if clean_row:
                                 valid_rows.append(clean_row)
@@ -190,17 +220,17 @@ class GeminiDetector:
                         if len(valid_rows) == 8:
                             board_part = '/'.join(valid_rows)
                             
-                            # Construir FEN completo
+                            # Build complete FEN
                             if len(parts) >= 6:
-                                # Ya tiene todas las partes
+                                # Already has all parts
                                 return f"{board_part} {' '.join(parts[1:6])}"
                             else:
-                                # Agregar partes faltantes
+                                # Add missing parts
                                 fen_parts = [board_part]
                                 if len(parts) > 1:
                                     fen_parts.extend(parts[1:])
                                 
-                                # Completar partes faltantes
+                                # Complete missing parts
                                 while len(fen_parts) < 6:
                                     if len(fen_parts) == 1:
                                         fen_parts.append('w')
@@ -215,22 +245,22 @@ class GeminiDetector:
                                 
                                 return ' '.join(fen_parts)
         
-        # Si no se encontró en líneas separadas, buscar patrón FEN en el texto completo
+        # If not found in separate lines, search for FEN pattern in complete text
         fen_pattern = r'([rnbqkpRNBQKP1-8]+/){7}[rnbqkpRNBQKP1-8]+(?:\s+[wb]\s+[KQkq-]+\s+[a-h1-8-]+\s+\d+\s+\d+)?'
         match = re.search(fen_pattern, text)
         if match:
             fen = match.group(0).strip()
-            # Limpiar caracteres inválidos
+            # Clean invalid characters
             parts = fen.split()
             if len(parts) >= 1:
                 board_part = parts[0]
-                # Limpiar tablero - corregir errores comunes
-                board_part = board_part.replace('h', 'b')  # 'h' probablemente es 'b'
-                board_part = board_part.replace('H', 'B')  # 'H' probablemente es 'B'
+                # Clean board - correct common errors
+                board_part = board_part.replace('h', 'b')  # 'h' probably is 'b'
+                board_part = board_part.replace('H', 'B')  # 'H' probably is 'B'
                 board_part = re.sub(r'[^rnbqkpRNBQKP12345678/]', '', board_part)
                 rows = board_part.split('/')
                 if len(rows) == 8:
-                    # Limpiar cada fila
+                    # Clean each row
                     clean_rows = [re.sub(r'[^rnbqkpRNBQKP12345678]', '', row) for row in rows]
                     board_part = '/'.join(clean_rows)
                     
@@ -256,7 +286,7 @@ class GeminiDetector:
         return None
     
     def _try_fix_fen(self, fen: str) -> str:
-        """Intenta reparar errores comunes en el FEN."""
+        """Attempts to repair common errors in FEN."""
         parts = fen.split()
         board_part = parts[0]
         rows = board_part.split('/')
@@ -273,11 +303,11 @@ class GeminiDetector:
             if count == 8:
                 fixed_rows.append(row)
             elif count > 8:
-                # Fila tiene mas de 8, intentar corregir reduciendo numeros
+                # Row has more than 8, try to correct by reducing numbers
                 new_row = self._fix_row_too_long(row, count)
                 fixed_rows.append(new_row)
             else:
-                # Fila tiene menos de 8, agregar espacios vacios al final
+                # Row has less than 8, add empty spaces at the end
                 diff = 8 - count
                 fixed_rows.append(row + str(diff))
         
@@ -285,7 +315,7 @@ class GeminiDetector:
         return ' '.join(parts)
     
     def _fix_row_too_long(self, row: str, current_count: int) -> str:
-        """Corrige una fila que suma mas de 8."""
+        """Fixes a row that sums more than 8."""
         excess = current_count - 8
         new_row = []
         remaining_excess = excess
@@ -298,21 +328,21 @@ class GeminiDetector:
                     remaining_excess = 0
                 else:
                     remaining_excess -= val
-                    # No agregar este digito
+                    # Don't add this digit
             else:
                 new_row.append(char)
         
         result = ''.join(new_row)
         
-        # Verificar que ahora suma 8
+        # Verify that it now sums 8
         count = sum(int(c) if c.isdigit() else 1 for c in result if c.isdigit() or c in 'rnbqkpRNBQKP')
         if count != 8:
-            # Si aun no suma 8, devolver fila original (se rechazara en validacion)
+            # If still doesn't sum 8, return original row (will be rejected in validation)
             return row
         return result
     
     def _looks_like_fen(self, text: str) -> bool:
-        """Verifica si el texto parece un FEN."""
+        """Checks if text looks like FEN."""
         parts = text.split('/')
         return len(parts) == 8 and all(
             re.match(r'^[rnbqkpRNBQKP1-8]+$', p.split()[0] if ' ' in p else p)
@@ -320,17 +350,17 @@ class GeminiDetector:
         )
     
     def _validate_fen(self, fen: str) -> bool:
-        """Valida que el FEN sea parseable (no necesariamente legal)."""
+        """Validates that FEN is parseable (not necessarily legal)."""
         try:
             parts = fen.split()
             board_part = parts[0]
             
-            # Verificar estructura basica: 8 filas
+            # Verify basic structure: 8 rows
             rows = board_part.split('/')
             if len(rows) != 8:
                 return False
             
-            # Verificar que cada fila sume 8 (piezas + espacios)
+            # Verify that each row sums 8 (pieces + spaces)
             for row in rows:
                 count = 0
                 for char in row:
@@ -349,16 +379,16 @@ class GeminiDetector:
 
     def suggest_best_move(self, image: Image.Image, timeout: float = 15.0) -> Optional[dict]:
         """
-        Pide a Gemini que sugiera el mejor movimiento basado en la imagen.
-        Sugiere el mejor movimiento basado en análisis de Gemini.
+        Asks Gemini to suggest the best move based on the image.
+        Suggests the best move based on Gemini analysis.
         
         Returns:
-            dict con 'move' (UCI), 'san', 'explanation' o None si falla
+            dict with 'move' (UCI), 'san', 'explanation' or None if it fails
         """
         try:
             model = self._get_model()
             
-            # Preparar imagen
+            # Prepare image
             if image.mode != 'RGB':
                 image = image.convert('RGB')
             
@@ -384,10 +414,10 @@ Return ONLY the JSON, no other text:"""
             if not response.text:
                 return None
             
-            # Parsear JSON de respuesta
+            # Parse JSON response
             import json
             text = response.text.strip()
-            # Limpiar posibles marcadores de codigo
+            # Clean possible code markers
             if text.startswith('```'):
                 text = text.split('\n', 1)[1] if '\n' in text else text[3:]
             if text.endswith('```'):
@@ -398,17 +428,17 @@ Return ONLY the JSON, no other text:"""
             return {
                 'move': result.get('move', ''),
                 'san': result.get('san', ''),
-                'explanation': result.get('explanation', 'Sugerido por Gemini AI'),
+                'explanation': result.get('explanation', 'Suggested by Gemini AI'),
                 'source': 'gemini'
             }
             
         except Exception as e:
-            logger.error(f"Error en Gemini suggest_best_move: {e}")
+            logger.error(f"Error in Gemini suggest_best_move: {e}")
             return None
 
 
 def image_to_base64(image: Image.Image, format: str = 'PNG') -> str:
-    """Convierte imagen PIL a base64."""
+    """Converts PIL image to base64."""
     buffered = io.BytesIO()
     image.save(buffered, format=format)
     return base64.b64encode(buffered.getvalue()).decode('utf-8')

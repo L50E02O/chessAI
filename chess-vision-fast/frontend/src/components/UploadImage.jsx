@@ -1,41 +1,41 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { detectAndMove } from '../services/api'
 
-export default function UploadImage({ onResult, setStatus, setIsLoading, abortControllerRef }) {
+export default function UploadImage({ onResult, setStatus, setIsLoading, abortControllerRef, selectedModel }) {
   const input = useRef(null)
   const dropZoneRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
 
-  // Procesar archivo (compartido entre upload, drop y paste)
+  // Process file (shared between upload, drop and paste)
   async function processFile(file) {
     if (!file || !file.type.startsWith('image/')) {
-      setStatus('Archivo no es una imagen válida')
+      setStatus('File is not a valid image')
       return
     }
     
-    // Cancelar operación anterior si existe
+    // Cancel previous operation if exists
     if (abortControllerRef?.current) {
       abortControllerRef.current.abort()
     }
     
-    // Crear nuevo AbortController
+    // Create new AbortController
     abortControllerRef.current = new AbortController()
     
     if (setIsLoading) setIsLoading(true)
-    setStatus('Analizando imagen con Gemini...')
+    setStatus('Analyzing image with Gemini...')
     
     try {
-      const data = await detectAndMove(file, abortControllerRef.current.signal)
+      const data = await detectAndMove(file, abortControllerRef.current.signal, selectedModel)
       onResult(data)
       if (!data.error) {
-        setStatus('Análisis completado')
+        setStatus('Analysis completed')
       }
     } catch (error) {
       if (error.name === 'AbortError') {
-        setStatus('Análisis cancelado')
+        setStatus('Analysis cancelled')
       } else {
         console.error(error)
-        const errorMsg = error.message || 'Error procesando imagen'
+        const errorMsg = error.message || 'Error processing image'
         setStatus(`Error: ${errorMsg}`)
         onResult({ error: errorMsg })
       }
@@ -45,7 +45,7 @@ export default function UploadImage({ onResult, setStatus, setIsLoading, abortCo
     }
   }
 
-  // Handler para input file
+  // Handler for file input
   async function handleUpload(event) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -53,7 +53,7 @@ export default function UploadImage({ onResult, setStatus, setIsLoading, abortCo
     if (input.current) input.current.value = ''
   }
 
-  // Handlers para drag & drop
+  // Handlers for drag & drop
   function handleDragOver(e) {
     e.preventDefault()
     e.stopPropagation()
@@ -77,7 +77,7 @@ export default function UploadImage({ onResult, setStatus, setIsLoading, abortCo
     }
   }
 
-  // Handler para Ctrl+V (paste)
+  // Handler for Ctrl+V (paste)
   useEffect(() => {
     async function handlePaste(e) {
       const items = e.clipboardData?.items
@@ -130,9 +130,9 @@ export default function UploadImage({ onResult, setStatus, setIsLoading, abortCo
         
         <div>
           <p className="text-xs font-medium text-slate-300">
-            Arrastra una imagen aqui o{' '}
+            Drag an image here or{' '}
             <label className="cursor-pointer text-emerald-400 hover:text-emerald-300">
-              busca en tu equipo
+              browse your device
               <input
                 ref={input}
                 type="file"
@@ -143,7 +143,7 @@ export default function UploadImage({ onResult, setStatus, setIsLoading, abortCo
             </label>
           </p>
           <p className="mt-0.5 text-xs text-slate-500">
-            Tambien puedes pegar con Ctrl+V
+            You can also paste with Ctrl+V
           </p>
         </div>
       </div>

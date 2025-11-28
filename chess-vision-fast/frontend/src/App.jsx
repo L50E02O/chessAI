@@ -1,10 +1,16 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import UploadImage from './components/UploadImage'
 import BoardPreview from './components/BoardPreview'
-import { bestMove, clearContext, getRetrospective } from './services/api'
+import { bestMove, clearContext, getRetrospective, changeModel, getCurrentModel, detectAndMove } from './services/api'
+
+const AVAILABLE_MODELS = [
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'Fast and precise (15 RPM)' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'Balanced (10 RPM)' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'More powerful (2 RPM)' },
+]
 
 export default function App() {
-  const [status, setStatus] = useState('Listo para analizar')
+  const [status, setStatus] = useState('Ready to analyze')
   const [overlayImage, setOverlayImage] = useState(null)
   const [fen, setFen] = useState('')
   const [bestMoveText, setBestMoveText] = useState('')
@@ -16,9 +22,22 @@ export default function App() {
   const [showRetrospective, setShowRetrospective] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash')
+  const [modelChanging, setModelChanging] = useState(false)
   
-  // AbortController para cancelar operaciones
+  // AbortController to cancel operations
   const abortControllerRef = useRef(null)
+
+  // Load current model on startup
+  useEffect(() => {
+    getCurrentModel()
+      .then(data => {
+        if (data.model) {
+          setSelectedModel(data.model)
+        }
+      })
+      .catch(err => console.error('Error loading model:', err))
+  }, [])
 
   const cancelOperation = () => {
     if (abortControllerRef.current) {
@@ -26,8 +45,28 @@ export default function App() {
       abortControllerRef.current = null
     }
     setIsLoading(false)
-    setStatus('Operación cancelada')
+    setStatus('Operation cancelled')
     setError(null)
+  }
+
+  const handleModelChange = async (newModel) => {
+    if (newModel === selectedModel) return
+    
+    setModelChanging(true)
+    setStatus('Changing model...')
+    try {
+      await changeModel(newModel)
+      setSelectedModel(newModel)
+      setStatus('Model changed successfully')
+      // Clear context when changing model
+      await clearContext()
+    } catch (error) {
+      console.error(error)
+      setError(`Error changing model: ${error.message}`)
+      setStatus('Error changing model')
+    } finally {
+      setModelChanging(false)
+    }
   }
 
   const handleResult = (data) => {
@@ -44,19 +83,19 @@ export default function App() {
       setStatus(`Error: ${data.error}`)
     } else {
       setError(null)
-      setStatus('Análisis completado')
+      setStatus('Analysis completed')
     }
     setIsLoading(false)
   }
 
   const handleManualBestMove = async () => {
     if (!fen) {
-      setStatus('Primero sube una imagen del tablero')
-      setError('No hay FEN disponible')
+      setStatus('First upload a board image')
+      setError('No FEN available')
       return
     }
     
-    // Cancelar operación anterior si existe
+    // Cancel previous operation if exists
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
@@ -64,10 +103,10 @@ export default function App() {
     abortControllerRef.current = new AbortController()
     setIsLoading(true)
     setError(null)
-    setStatus('Analizando con Gemini GM...')
+    setStatus(`Analyzing with ${selectedModel}...`)
     
     try {
-      const response = await bestMove(fen, abortControllerRef.current.signal)
+      const response = await bestMove(fen, abortControllerRef.current.signal, selectedModel)
       setBestMoveText(response.best_move || response.uci || '')
       setExplanation(response.explanation || '')
       setPositionAnalysis(response.position_analysis || '')
@@ -78,15 +117,15 @@ export default function App() {
         setStatus(`Error: ${response.error}`)
       } else {
         setError(null)
-        setStatus('Análisis completado')
+        setStatus('Analysis completed')
       }
     } catch (error) {
       if (error.name === 'AbortError') {
-        setStatus('Análisis cancelado')
+        setStatus('Analysis cancelled')
         setError(null)
       } else {
         console.error(error)
-        const errorMsg = error.message || 'Error al analizar la posición'
+        const errorMsg = error.message || 'Error analyzing position'
         setError(errorMsg)
         setStatus(`Error: ${errorMsg}`)
       }
@@ -104,7 +143,7 @@ export default function App() {
     abortControllerRef.current = new AbortController()
     setIsLoading(true)
     setError(null)
-    setStatus('Limpiando contexto...')
+    setStatus('Clearing context...')
     
     try {
       await clearContext(abortControllerRef.current.signal)
@@ -117,14 +156,14 @@ export default function App() {
       setRetrospective(null)
       setShowRetrospective(false)
       setError(null)
-      setStatus('Contexto limpiado - Listo para nueva partida')
+      setStatus('Context cleared - Ready for new game')
     } catch (error) {
       if (error.name === 'AbortError') {
-        setStatus('Operación cancelada')
+        setStatus('Operation cancelled')
         setError(null)
       } else {
         console.error(error)
-        const errorMsg = error.message || 'Error al limpiar contexto'
+        const errorMsg = error.message || 'Error clearing context'
         setError(errorMsg)
         setStatus(`Error: ${errorMsg}`)
       }
@@ -142,21 +181,21 @@ export default function App() {
     abortControllerRef.current = new AbortController()
     setIsLoading(true)
     setError(null)
-    setStatus('Generando retrospectiva...')
+    setStatus('Generating retrospective...')
     
     try {
       const response = await getRetrospective(abortControllerRef.current.signal)
       setRetrospective(response.retrospective)
       setShowRetrospective(true)
       setError(null)
-      setStatus('Retrospectiva generada')
+      setStatus('Retrospective generated')
     } catch (error) {
       if (error.name === 'AbortError') {
-        setStatus('Operación cancelada')
+        setStatus('Operation cancelled')
         setError(null)
       } else {
         console.error(error)
-        const errorMsg = error.message || 'Error al obtener retrospectiva'
+        const errorMsg = error.message || 'Error getting retrospective'
         setError(errorMsg)
         setStatus(`Error: ${errorMsg}`)
       }
@@ -170,7 +209,7 @@ export default function App() {
     if (!overlayImage) return
     const link = document.createElement('a')
     link.href = `data:image/png;base64,${overlayImage}`
-    link.download = 'tablero-analizado.png'
+    link.download = 'analyzed-board.png'
     link.click()
   }
 
@@ -178,12 +217,12 @@ export default function App() {
     <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
       {/* Header - Compacto */}
       <header className="flex-shrink-0 px-4 py-2 text-center border-b border-slate-700/50">
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-3 flex-wrap">
           <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Chess Vision Fast</p>
           </div>
           <h1 className="text-lg sm:text-xl font-bold text-white">
-            Analisis con{' '}
+            Analysis with{' '}
             <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
               Gemini AI
             </span>
@@ -200,7 +239,7 @@ export default function App() {
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-              Cancelar
+              Cancel
             </button>
           )}
         </div>
@@ -214,19 +253,52 @@ export default function App() {
       {/* Main Content - Flex para ocupar espacio restante */}
       <main className="flex-1 overflow-hidden px-4 py-2">
         <div className="h-full flex flex-col gap-2 max-w-7xl mx-auto">
+          {/* Model Selector */}
+          <section className="flex-shrink-0 rounded-lg border border-slate-700 bg-slate-800/50 backdrop-blur-sm p-2 shadow-xl">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <span className="text-xs font-semibold text-white">Gemini Model</span>
+              </div>
+              <div className="flex gap-1">
+                {AVAILABLE_MODELS.map((model) => (
+                  <button
+                    key={model.value}
+                    onClick={() => handleModelChange(model.value)}
+                    disabled={modelChanging || isLoading}
+                    className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
+                      selectedModel === model.value
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    title={model.description}
+                  >
+                    {model.label.split(' ')[1]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-1 text-xs text-slate-400 text-center">
+              {AVAILABLE_MODELS.find(m => m.value === selectedModel)?.description}
+            </div>
+          </section>
+
           {/* Upload Section - Compacto */}
           <section className="flex-shrink-0 rounded-lg border border-slate-700 bg-slate-800/50 backdrop-blur-sm p-3 shadow-xl">
             <div className="flex items-center gap-2 mb-2">
               <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <h2 className="text-sm font-semibold text-white">Subir Imagen</h2>
+              <h2 className="text-sm font-semibold text-white">Upload Image</h2>
             </div>
             <UploadImage 
               onResult={handleResult} 
               setStatus={setStatus} 
               setIsLoading={setIsLoading}
               abortControllerRef={abortControllerRef}
+              selectedModel={selectedModel}
             />
           </section>
 
@@ -240,12 +312,12 @@ export default function App() {
                     <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <h2 className="text-sm font-semibold text-white">Tablero</h2>
+                    <h2 className="text-sm font-semibold text-white">Board</h2>
                   </div>
                   <div className="flex-1 rounded overflow-hidden border border-slate-700 bg-black min-h-0 flex items-center justify-center">
                     <img
                       src={`data:image/png;base64,${overlayImage}`}
-                      alt="Tablero analizado"
+                      alt="Analyzed board"
                       className="max-w-full max-h-full object-contain"
                     />
                   </div>
@@ -276,12 +348,12 @@ export default function App() {
               <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
               </svg>
-              <h2 className="text-sm font-semibold text-white">Controles</h2>
+              <h2 className="text-sm font-semibold text-white">Controls</h2>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 onClick={handleManualBestMove}
-                disabled={isLoading || !fen}
+                disabled={isLoading || !fen || modelChanging}
                 className="col-span-2 sm:col-span-1 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-2 py-2 text-xs font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
                 {isLoading ? (
@@ -294,7 +366,7 @@ export default function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 )}
-                <span>Analizar</span>
+                <span>Analyze</span>
               </button>
               
               <button
@@ -305,29 +377,29 @@ export default function App() {
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span>Descargar</span>
+                <span>Download</span>
               </button>
               
               <button
                 onClick={handleGetRetrospective}
-                disabled={isLoading || !fen}
+                disabled={isLoading || !fen || modelChanging}
                 className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-2 text-xs font-semibold text-white shadow-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                <span>Retrospectiva</span>
+                <span>Retrospective</span>
               </button>
               
               <button
                 onClick={handleClearContext}
-                disabled={isLoading}
+                disabled={isLoading || modelChanging}
                 className="rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-2 py-2 text-xs font-semibold text-white shadow-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                <span>Limpiar</span>
+                <span>Clear</span>
               </button>
             </div>
             
@@ -339,7 +411,7 @@ export default function App() {
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Retrospectiva
+                    Retrospective
                   </h3>
                   <button
                     onClick={() => setShowRetrospective(false)}
