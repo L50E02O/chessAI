@@ -1718,8 +1718,10 @@ export function getContext(signal) {
 
 - [ ] **Step 2: Verify no stale imports**
 
-Run: `rg "changeModel|getCurrentModel" chess-vision-fast/frontend/src`
+Run: `rg "changeModel|getCurrentModel" chess-vision-fast/frontend/src/services`
 Expected: no matches.
+
+> NOTE: `App.jsx` still imports `getRetrospective`/`changeModel`/`getCurrentModel` until Task 10 rewrites it, so the `rg` check is scoped to `src/services` here. Tasks 9+10 must be delivered back-to-back (two commits) so the frontend build is only verified green at the end of Task 10.
 
 - [ ] **Step 3: Commit**
 
