@@ -42,3 +42,29 @@ def render_board(fen: str, square: int = 60, frame: int = 16, page_margin: int =
             pimg = PIECES[key].resize((square, square), Image.Resampling.LANCZOS)
             img.paste(pimg, (ox + c * square, oy + r * square), pimg)
     return img
+
+
+def render_green_theme_board(fen: str, square: int = 63, highlight_squares=()) -> Image.Image:
+    """Renders a chess.com green-theme board (dark squares are green) with no
+    frame, optionally tinting squares like the last-move/check highlight."""
+    board = chess.Board(fen)
+    img = Image.new('RGB', (square * 8, square * 8), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    for r in range(8):
+        for c in range(8):
+            color = LIGHT if (r + c) % 2 == 0 else (67, 202, 185)
+            draw.rectangle([c * square, r * square, (c + 1) * square, (r + 1) * square], fill=color)
+    for r in range(8):
+        for c in range(8):
+            sq = chess.square(c, 7 - r)
+            piece = board.piece_at(sq)
+            if piece is None:
+                continue
+            key = ('w' if piece.color == chess.WHITE else 'b') + piece.symbol().upper()
+            pimg = PIECES[key].resize((square, square), Image.Resampling.LANCZOS)
+            img.paste(pimg, (c * square, r * square), pimg)
+    for name in highlight_squares:
+        c, r = ord(name[0]) - 97, 8 - int(name[1])
+        tint = Image.new('RGBA', (square, square), (80, 200, 220, 110))
+        img.paste(tint, (c * square, r * square), tint)
+    return img

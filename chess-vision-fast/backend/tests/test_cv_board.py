@@ -5,8 +5,8 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 
-from backend.app.cv_detector import _verify_board, find_board
-from tests.helpers.board_renderer import render_board
+from backend.app.cv_detector import _green_board_quad, _verify_board, find_board
+from tests.helpers.board_renderer import render_board, render_green_theme_board
 
 START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
@@ -38,6 +38,18 @@ def test_find_board_framed_large_board():
     # warped using its real interior, not a misaligned centered 480 window.
     img = render_board(START, square=80, frame=16, page_margin=40)
     board = find_board(_to_bgr(img))
+    assert board is not None
+    assert board.shape == (480, 480, 3)
+    assert _verify_board(board)
+
+
+def test_green_theme_board_detection():
+    # chess.com green theme: dark squares are green and there is no frame, so
+    # the board is detected from the green checkerboard extent.
+    img = _to_bgr(render_green_theme_board(START))
+    quad = _green_board_quad(img)
+    assert quad is not None
+    board = find_board(img)
     assert board is not None
     assert board.shape == (480, 480, 3)
     assert _verify_board(board)

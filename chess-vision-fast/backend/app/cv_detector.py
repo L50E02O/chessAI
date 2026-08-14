@@ -104,6 +104,40 @@ def _largest_square_quad(image: np.ndarray) -> Optional[np.ndarray]:
     return np.float32([[x0, y0], [x0 + side, y0], [x0 + side, y0 + side], [x0, y0 + side]])
 
 
+def _green_board_quad(image: np.ndarray) -> Optional[np.ndarray]:
+    """Detect a board whose dark squares are green (chess.com green theme).
+
+    In that theme there is no green frame to segment; the green mask itself is
+    the checkerboard. Its largest 8-connected component spans the whole board,
+    so the component bbox is the board extent. A sparse/ring-shaped green mask
+    (e.g. a green frame, or incidental green page elements) is rejected by the
+    fill-ratio guard and falls through to the other candidates."""
+    b = image[:, :, 0].astype(np.int32)
+    g = image[:, :, 1].astype(np.int32)
+    r = image[:, :, 2].astype(np.int32)
+    is_green = (g > r + 12) & (g > b + 12)
+    n, labels, stats, cents = cv2.connectedComponentsWithStats(is_green.astype(np.uint8), 8)
+    if n <= 1:
+        return None
+    big = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    x0 = int(stats[big, cv2.CC_STAT_LEFT])
+    y0 = int(stats[big, cv2.CC_STAT_TOP])
+    x1 = x0 + int(stats[big, cv2.CC_STAT_WIDTH])
+    y1 = y0 + int(stats[big, cv2.CC_STAT_HEIGHT])
+    bbox_area = (x1 - x0) * (y1 - y0)
+    if stats[big, cv2.CC_STAT_AREA] < 0.3 * bbox_area:
+        return None
+    side = min(x1 - x0, y1 - y0)
+    if side < TARGET_SIZE // 2:
+        return None
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    x0, x1 = int(round(cx - side / 2)), int(round(cx + side / 2))
+    y0, y1 = int(round(cy - side / 2)), int(round(cy + side / 2))
+    if x0 < 0 or y0 < 0 or x1 > image.shape[1] or y1 > image.shape[0]:
+        return None
+    return np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
+
+
 def _warp_board(image: np.ndarray, quad: np.ndarray) -> np.ndarray:
     dst = np.float32([[0, 0], [TARGET_SIZE, 0], [TARGET_SIZE, TARGET_SIZE], [0, TARGET_SIZE]])
     matrix = cv2.getPerspectiveTransform(quad, dst)
@@ -150,6 +184,9 @@ def find_board(image: np.ndarray) -> Optional[np.ndarray]:
     quad = _interior_quad(image)
     if quad is not None:
         candidates.append(_warp_board(image, quad))
+    green = _green_board_quad(image)
+    if green is not None:
+        candidates.append(_warp_board(image, green))
     square = _largest_square_quad(image)
     if square is not None:
         candidates.append(_warp_board(image, square))
@@ -198,9 +235,13 @@ def square_state(cell: np.ndarray, light, dark) -> Tuple[bool, Optional[str]]:
     bg = np.median(cell.reshape(-1, 3), axis=0)
     sq = light if np.linalg.norm(bg - light) < np.linalg.norm(bg - dark) else dark
     mask = np.linalg.norm(cell.astype(np.float32) - sq, axis=2) > 25
-    if mask.mean() < 0.05:
+    # The cell must also differ from its own median: chess.com highlights the
+    # last-move/check squares with a tint that changes the square color, which
+    # would otherwise look "occupied" even when empty.
+    non_uniform = np.linalg.norm(cell.astype(np.float32) - bg, axis=2) > 25
+    if mask.mean() < 0.05 or non_uniform.mean() < 0.05:
         return False, None
-    mean = np.mean(cell[mask], axis=0)
+    mean = np.mean(cell[non_uniform], axis=0)
     mid = (_luminance(light) + _luminance(dark)) / 2
     return True, ('w' if _luminance(mean) > mid else 'b')
 

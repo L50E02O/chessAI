@@ -6,7 +6,7 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 import numpy as np
 
 from backend.app.cv_detector import CVBoardDetector
-from tests.helpers.board_renderer import render_board
+from tests.helpers.board_renderer import render_board, render_green_theme_board
 
 START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 MIDGAME = 'r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 1'
@@ -53,3 +53,16 @@ def test_detect_starting_position_framed_large_cells():
     assert result.fen.startswith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
     assert len(result.squares) == 32
     assert result.confidence > 0.8
+
+
+def test_detect_green_theme_board_with_highlighted_empty_square():
+    # Regression: chess.com green theme (dark squares are green, no frame) plus
+    # a last-move highlight on an empty square used to fail board detection and
+    # treat the highlighted empty square as occupied.
+    fen = '6k1/pppppppp/8/8/8/8/PPPPPPPP/6K1 w - - 0 1'
+    detector = CVBoardDetector(None)
+    img = render_green_theme_board(fen, highlight_squares=('h8',))
+    result = detector.detect(img)
+    assert result.fen.startswith('6k1/pppppppp/8/8/8/8/PPPPPPPP/6K1')
+    assert len(result.squares) == 18
+    assert all(s.square != 'h8' for s in result.squares)
