@@ -1,4 +1,4 @@
-from .gemini_chess_service import GeminiChessService
+from .stockfish_service import StockfishService
 
-__all__ = ['GeminiChessService']
+__all__ = ['StockfishService']
 
