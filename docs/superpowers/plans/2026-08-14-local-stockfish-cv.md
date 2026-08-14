@@ -457,7 +457,8 @@ def test_square_state_occupied():
 
 def test_classify_piece_white_queen():
     img = np.array(render_board('8/8/8/8/8/8/8/3QK3 w - - 0 1').convert('RGB'))[:, :, ::-1]
-    cell = img[480 - 60:480, 120:180]
+    # d1 square: renderer offsets board interior by (frame + page_margin) = 56, so cell rows 476:536, cols 236:296
+    cell = img[476:536, 236:296]
     letter, score = classify_piece(cell, 'w')
     assert letter == 'Q'
     assert score > 0.5
