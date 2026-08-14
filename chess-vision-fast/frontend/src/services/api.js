@@ -8,35 +8,41 @@ async function _jsonResponse(response) {
   return response.json()
 }
 
-export function detectImage(file, signal) {
-  const form = new FormData()
-  form.set('file', file)
-  return fetch(`${API_BASE}/api/detect`, {
-    method: 'POST',
-    body: form,
-    signal,
-  }).then(_jsonResponse)
-}
-
-export function detectAndMove(file, signal, model) {
-  const form = new FormData()
-  form.set('file', file)
-  const url = new URL(`${API_BASE}/api/detect_and_move`)
-  if (model) {
-    url.searchParams.set('model', model)
+function _query(url, params) {
+  const u = new URL(url)
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== null && value !== undefined && value !== '') {
+      u.searchParams.set(key, value)
+    }
   }
-  return fetch(url.toString(), {
+  return u.toString()
+}
+
+export function detectImage(file, signal, orientation) {
+  const form = new FormData()
+  form.set('file', file)
+  return fetch(_query(`${API_BASE}/api/detect`, { orientation }), {
     method: 'POST',
     body: form,
     signal,
   }).then(_jsonResponse)
 }
 
-export function bestMove(fen, signal, model) {
+export function detectAndMove(file, signal, orientation, turn, depth) {
+  const form = new FormData()
+  form.set('file', file)
+  return fetch(_query(`${API_BASE}/api/detect_and_move`, { orientation, turn, depth }), {
+    method: 'POST',
+    body: form,
+    signal,
+  }).then(_jsonResponse)
+}
+
+export function bestMove(fen, signal, turn, depth) {
   return fetch(`${API_BASE}/api/best_move`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fen, model }),
+    body: JSON.stringify({ fen, turn, depth }),
     signal,
   }).then(_jsonResponse)
 }
@@ -48,23 +54,9 @@ export function clearContext(signal) {
   }).then(_jsonResponse)
 }
 
-export function getRetrospective(signal) {
-  return fetch(`${API_BASE}/api/retrospective`, {
+export function getContext(signal) {
+  return fetch(`${API_BASE}/api/context`, {
     method: 'GET',
     signal,
-  }).then(_jsonResponse)
-}
-
-export function changeModel(model) {
-  return fetch(`${API_BASE}/api/change_model`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model }),
-  }).then(_jsonResponse)
-}
-
-export function getCurrentModel() {
-  return fetch(`${API_BASE}/api/current_model`, {
-    method: 'GET',
   }).then(_jsonResponse)
 }
