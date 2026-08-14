@@ -44,6 +44,8 @@ class DetectionResult:
     board_image_base64: str
     squares: List[SquareDetection]
     confidence: float
+    board_image: Optional[Image.Image] = None
+    error: Optional[str] = None
 
 
 class BaseDetector:
@@ -95,15 +97,14 @@ def fen_from_detections(squares: List[SquareDetection]) -> str:
 
 
 class DetectorFactory:
-    """Detector factory. Uses Gemini Vision for board detection."""
-    
+    """Detector factory. Uses the local CV pipeline for board detection."""
+
     def __init__(self, settings: AppSettings, override_backend: Optional[str] = None) -> None:
         self.settings = settings
-        # override_backend is kept for compatibility but not used
 
     def create(self) -> BaseDetector:
-        # Only uses Gemini for detection
-        return GeminiVisionDetector(self.settings)
+        from .cv_detector import CVBoardDetector
+        return CVBoardDetector(self.settings)
 
 
 class GeminiVisionDetector(BaseDetector):

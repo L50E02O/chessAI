@@ -5,11 +5,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AppSettings(BaseSettings):
-    # Google Gemini API (obtener en https://aistudio.google.com/apikey)
-    # REQUERIDO para el análisis de ajedrez
+    # Stockfish engine
+    stockfish_path: str = ''
+    stockfish_depth: int = 15
+    stockfish_auto_download: bool = True
+
+    # Google Gemini API (removed in Task 8; kept for existing code paths)
     gemini_api_key: str = ''
-    gemini_model: str = 'gemini-2.0-flash'  # Modelo más reciente, mejor para visión y análisis
-    
+    gemini_model: str = 'gemini-2.0-flash'
+
     # General
     allowed_origins: List[str] = ['*']
     max_upload_size: int = 5 * 1024 * 1024

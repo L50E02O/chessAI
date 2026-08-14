@@ -220,3 +220,88 @@ def classify_piece(cell: np.ndarray, piece_color: str) -> Optional[Tuple[str, fl
     if best_letter is None or best_score < 0.5:
         return None
     return best_letter, best_score
+
+
+import chess
+from PIL import Image
+
+from .detector import BaseDetector, DetectionResult, SquareDetection
+from .fen import confidence_from_squares, matrix_to_fen
+
+
+def _square_at(r: int, c: int) -> str:
+    file = chr(ord('a') + c)
+    rank = 8 - r
+    return f'{file}{rank}'
+
+
+def _detect_orientation(squares: list) -> str:
+    top_white = sum(1 for s in squares if s.piece and s.piece.isupper() and s.bbox[1] < 4 * CELL)
+    bot_white = sum(1 for s in squares if s.piece and s.piece.isupper() and s.bbox[1] >= 4 * CELL)
+    if top_white > bot_white:
+        return 'w-top'
+    return 'w-bottom'
+
+
+class CVBoardDetector(BaseDetector):
+    def detect(self, image: Image.Image) -> DetectionResult:
+        img = cv2.cvtColor(np.array(image.convert('RGB')), cv2.COLOR_RGB2BGR)
+        board = find_board(img)
+        if board is None:
+            return self._error_result(
+                image,
+                'Could not detect the chess board. Make sure the screenshot shows the full board facing forward.',
+            )
+        colors = empty_colors(board)
+        if colors is None:
+            return self._error_result(image, 'Could not determine board colors.')
+        light, dark = colors
+
+        squares = []
+        matrix = [['' for _ in range(8)] for _ in range(8)]
+        unknown = []
+        for r in range(8):
+            for c in range(8):
+                cell = board[r * CELL:(r + 1) * CELL, c * CELL:(c + 1) * CELL]
+                occupied, piece_color = square_state(cell, light, dark)
+                if not occupied:
+                    continue
+                classified = classify_piece(cell, piece_color)
+                if classified is None:
+                    unknown.append(_square_at(r, c))
+                    continue
+                letter, conf = classified
+                fen_letter = letter if piece_color == 'w' else letter.lower()
+                squares.append(SquareDetection(square=_square_at(r, c), bbox=(c * CELL, r * CELL, CELL, CELL), piece=fen_letter, confidence=conf))
+                matrix[r][c] = fen_letter
+
+        if unknown:
+            return self._error_result(
+                image,
+                f'Could not classify pieces on squares: {", ".join(unknown)}. Try flipping the board or using a cleaner screenshot.',
+            )
+
+        orientation = _detect_orientation(squares)
+        fen = matrix_to_fen(matrix, active_color='w', orientation=orientation)
+        try:
+            chess.Board(fen)
+        except ValueError:
+            return self._error_result(image, f'Invalid position detected: {fen}. Please try again.')
+
+        board_pil = Image.fromarray(cv2.cvtColor(board, cv2.COLOR_BGR2RGB))
+        return DetectionResult(
+            fen=fen,
+            board_image_base64=self._image_to_base64(board_pil),
+            squares=squares,
+            confidence=confidence_from_squares(squares),
+            board_image=board_pil,
+        )
+
+    def _error_result(self, image: Image.Image, message: str) -> DetectionResult:
+        return DetectionResult(
+            fen='',
+            board_image_base64=self._image_to_base64(image),
+            squares=[],
+            confidence=0.0,
+            error=message,
+        )
