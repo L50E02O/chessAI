@@ -32,6 +32,8 @@ The following deviations from the original Task 3/4 code were validated on the s
 
 `find_board` still returns `(480, 480, 3)` BGR boards or `None`; the other public interfaces are unchanged.
 
+7. **Task 7 `test_compute_castling` FEN fixed** (verified empirically): the original `'r1bqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR'` retains all 4 rooks + both kings, so `compute_castling` returns `'KQkq'`, not `'Qq'`. The `'Qq'` expectation requires only a/h rooks: `'r3k3/8/8/8/8/8/8/R3K3'`.
+
 ---
 
 ### Task 1: FEN matrix orientation support
@@ -1136,7 +1138,7 @@ def test_evaluation_text_cp():
 
 def test_compute_castling():
     assert compute_castling('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR') == 'KQkq'
-    assert compute_castling('r1bqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR') == 'Qq'
+    assert compute_castling('r3k3/8/8/8/8/8/8/R3K3') == 'Qq'
     assert compute_castling('4k3/8/8/8/8/8/8/4K3') == '-'
 
 
