@@ -1,21 +1,47 @@
 import React from 'react'
 
-export default function BoardPreview({ 
-  overlayImage, 
-  fen, 
-  bestMove, 
+function winPercent(cp, mate) {
+  if (mate != null) return mate > 0 ? 100 : 0
+  if (cp == null) return 50
+  return Math.round(100 / (1 + Math.pow(10, -cp / 400)))
+}
+
+export default function BoardPreview({
+  fen,
+  bestMove,
   confidence,
-  explanation,
-  positionAnalysis,
-  strategicNotes,
-  error
+  evaluationText,
+  score,
+  pv,
+  error,
 }) {
+  const whitePct = score ? winPercent(score.cp, score.mate) : null
   return (
     <div className="space-y-2">
       {error && (
         <div className="rounded border border-red-500/30 bg-red-500/10 p-2">
           <p className="text-xs font-semibold text-red-400 mb-1">Error</p>
           <p className="text-xs text-red-300">{error}</p>
+        </div>
+      )}
+
+      {score && (
+        <div className="rounded border border-slate-700 bg-slate-900/50 p-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Evaluation
+          </p>
+          <div className="flex h-3 w-full overflow-hidden rounded bg-slate-700">
+            <div
+              className="bg-emerald-500"
+              style={{ width: `${whitePct}%` }}
+            ></div>
+          </div>
+          <p className="mt-1 text-xs text-slate-200">
+            {score.mate != null
+              ? `Mate in ${Math.abs(score.mate)}`
+              : `${score.cp == null ? 'n/a' : (score.cp / 100).toFixed(1)}`}
+            {evaluationText && <span className="text-slate-400"> — {evaluationText}</span>}
+          </p>
         </div>
       )}
 
@@ -43,25 +69,11 @@ export default function BoardPreview({
             <p className="text-xs font-semibold text-emerald-400">Best Move</p>
           </div>
           <p className="text-base font-bold text-white">{bestMove}</p>
-          
-          {explanation && (
+
+          {pv && pv.length > 0 && (
             <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
-              <p className="text-xs font-semibold text-slate-400 mb-0.5">Explanation</p>
-              <p className="text-xs text-slate-200 leading-relaxed">{explanation}</p>
-            </div>
-          )}
-          
-          {positionAnalysis && (
-            <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
-              <p className="text-xs font-semibold text-slate-400 mb-0.5">Analysis</p>
-              <p className="text-xs text-slate-200 leading-relaxed">{positionAnalysis}</p>
-            </div>
-          )}
-          
-          {strategicNotes && (
-            <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
-              <p className="text-xs font-semibold text-slate-400 mb-0.5">Strategy</p>
-              <p className="text-xs text-slate-200 leading-relaxed">{strategicNotes}</p>
+              <p className="text-xs font-semibold text-slate-400 mb-0.5">Line</p>
+              <p className="text-xs text-slate-200">{pv.join(' ')}</p>
             </div>
           )}
         </div>

@@ -1,31 +1,28 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { detectAndMove } from '../services/api'
 
-export default function UploadImage({ onResult, setStatus, setIsLoading, abortControllerRef, selectedModel }) {
+export default function UploadImage({ onResult, setStatus, setIsLoading, abortControllerRef, orientation, turn, depth }) {
   const input = useRef(null)
   const dropZoneRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
 
-  // Process file (shared between upload, drop and paste)
   async function processFile(file) {
     if (!file || !file.type.startsWith('image/')) {
       setStatus('File is not a valid image')
       return
     }
-    
-    // Cancel previous operation if exists
+
     if (abortControllerRef?.current) {
       abortControllerRef.current.abort()
     }
-    
-    // Create new AbortController
+
     abortControllerRef.current = new AbortController()
-    
+
     if (setIsLoading) setIsLoading(true)
-    setStatus('Analyzing image with Gemini...')
-    
+    setStatus('Analyzing image with Stockfish...')
+
     try {
-      const data = await detectAndMove(file, abortControllerRef.current.signal, selectedModel)
+      const data = await detectAndMove(file, abortControllerRef.current.signal, orientation, turn, depth)
       onResult(data)
       if (!data.error) {
         setStatus('Analysis completed')
@@ -45,15 +42,13 @@ export default function UploadImage({ onResult, setStatus, setIsLoading, abortCo
     }
   }
 
-  // Handler for file input
-  async function handleUpload(event) {
+  function handleUpload(event) {
     const file = event.target.files?.[0]
     if (!file) return
-    await processFile(file)
+    processFile(file)
     if (input.current) input.current.value = ''
   }
 
-  // Handlers for drag & drop
   function handleDragOver(e) {
     e.preventDefault()
     e.stopPropagation()
@@ -70,34 +65,26 @@ export default function UploadImage({ onResult, setStatus, setIsLoading, abortCo
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(false)
-    
     const file = e.dataTransfer.files?.[0]
-    if (file) {
-      await processFile(file)
-    }
+    if (file) await processFile(file)
   }
 
-  // Handler for Ctrl+V (paste)
   useEffect(() => {
     async function handlePaste(e) {
       const items = e.clipboardData?.items
       if (!items) return
-
       for (const item of items) {
         if (item.type.startsWith('image/')) {
           e.preventDefault()
           const file = item.getAsFile()
-          if (file) {
-            await processFile(file)
-          }
+          if (file) await processFile(file)
           break
         }
       }
     }
-
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
-  }, [])
+  }, [orientation, turn, depth])
 
   return (
     <div
@@ -127,7 +114,6 @@ export default function UploadImage({ onResult, setStatus, setIsLoading, abortCo
             />
           </svg>
         </div>
-        
         <div>
           <p className="text-xs font-medium text-slate-300">
             Drag an image here or{' '}
