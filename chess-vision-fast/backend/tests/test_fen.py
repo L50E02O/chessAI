@@ -21,3 +21,23 @@ def test_fen_from_square_detections():
     fen = fen_from_squares(squares)
     assert 'P' in fen and 'p' in fen
     assert fen.endswith('w KQkq - 0 1')
+
+
+def test_matrix_to_fen_w_top_orientation():
+    matrix = [['' for _ in range(8)] for _ in range(8)]
+    matrix[0][0] = 'P'   # image top-left corner
+    matrix[7][7] = 'p'   # image bottom-right corner
+    fen = matrix_to_fen(matrix, orientation='w-top')
+    ranks = fen.split()[0].split('/')
+    assert ranks[0] == 'p7', f'rank 8 must start at a8 with the black piece, got {ranks[0]}'
+    assert ranks[7] == '7P', f'rank 1 must end at h1 with the white piece, got {ranks[7]}'
+
+
+def test_matrix_to_fen_w_bottom_default():
+    matrix = [['' for _ in range(8)] for _ in range(8)]
+    matrix[0][0] = 'k'   # image top-left corner (a8)
+    matrix[7][7] = 'K'   # image bottom-right corner (h1)
+    fen = matrix_to_fen(matrix)
+    ranks = fen.split()[0].split('/')
+    assert ranks[0] == 'k7', ranks[0]
+    assert ranks[7] == '7K', ranks[7]

@@ -17,7 +17,9 @@ def build_matrix_from_squares(squares: Iterable['SquareDetection']) -> list[list
     return empty
 
 
-def matrix_to_fen(matrix: list[list[str]], active_color: str = 'w', castling: str = 'KQkq', en_passant: str = '-', halfmove_clock: int = 0, fullmove_number: int = 1) -> str:
+def matrix_to_fen(matrix: list[list[str]], active_color: str = 'w', castling: str = 'KQkq', en_passant: str = '-', halfmove_clock: int = 0, fullmove_number: int = 1, orientation: str = 'w-bottom') -> str:
+    if orientation == 'w-top':
+        matrix = [row[::-1] for row in reversed(matrix)]
     rows = []
     for row in matrix:
         empties = 0
