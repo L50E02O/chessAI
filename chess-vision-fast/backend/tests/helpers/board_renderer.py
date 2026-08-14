@@ -31,9 +31,10 @@ def render_board(fen: str, square: int = 60, frame: int = 16, page_margin: int =
             draw.rectangle([x0, y0, x0 + square, y0 + square], fill=color)
     for r in range(8):
         for c in range(8):
-            sq = chess.square(c, 7 - r)
             if white_top:
-                sq = chess.square_mirror(sq)
+                sq = chess.square(7 - c, r)
+            else:
+                sq = chess.square(c, 7 - r)
             piece = board.piece_at(sq)
             if piece is None:
                 continue
