@@ -295,6 +295,7 @@ class CVBoardDetector(BaseDetector):
             squares=squares,
             confidence=confidence_from_squares(squares),
             board_image=board_pil,
+            orientation=orientation,
         )
 
     def _error_result(self, image: Image.Image, message: str) -> DetectionResult:

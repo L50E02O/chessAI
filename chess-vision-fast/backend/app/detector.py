@@ -45,6 +45,7 @@ class DetectionResult:
     squares: List[SquareDetection]
     confidence: float
     board_image: Optional[Image.Image] = None
+    orientation: Optional[str] = None
     error: Optional[str] = None
 
 
