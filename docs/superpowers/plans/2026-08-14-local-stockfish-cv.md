@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- All checks run with pytest from the repo root `chess-vision-fast`: `python -m pytest tests/ -q` (tests append `chess-vision-fast` to `sys.path` and import as `backend.app.*` — follow the pattern in `tests/test_fen.py`).
+- All backend checks run with pytest from `chess-vision-fast/backend`: `python -m pytest tests/ -q` (tests append `chess-vision-fast` to `sys.path` and import as `backend.app.*` — follow the pattern in `tests/test_fen.py`).
 - Test imports use `from backend.app...` after the `sys.path.append` boilerplate shown in Task 1.
 - Use the existing settings pattern in `backend/app/utils.py` (pydantic-settings `BaseSettings`).
 - No LLM anywhere: no `google-generativeai`, no `GEMINI_API_KEY`, no Gemini model names.
