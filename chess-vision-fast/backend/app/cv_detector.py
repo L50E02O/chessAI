@@ -27,50 +27,81 @@ def _luminance(bgr) -> float:
     return 0.114 * float(bgr[0]) + 0.587 * float(bgr[1]) + 0.299 * float(bgr[2])
 
 
-def _inner_cell(board: np.ndarray, r: int, c: int, ratio: float = 0.6) -> np.ndarray:
-    side = int(CELL * ratio)
-    x = int(c * CELL + (CELL - side) / 2)
-    y = int(r * CELL + (CELL - side) / 2)
-    return board[y:y + side, x:x + side]
-
-
 def _verify_board(board: np.ndarray) -> bool:
+    """Return True when the warped board is an aligned 8x8 checkerboard.
+
+    Samples the four corners of every cell rather than its center, because
+    pieces occupy the middle of cells and would otherwise break the
+    luminance alternation check even on a correctly aligned board."""
+    p = 6
     cells = np.empty((8, 8), dtype=float)
     for r in range(8):
         for c in range(8):
-            cells[r, c] = _luminance(np.mean(_inner_cell(board, r, c), axis=(0, 1)))
+            x, y = c * CELL, r * CELL
+            pts = [
+                (y, x),
+                (y, x + CELL - p),
+                (y + CELL - p, x),
+                (y + CELL - p, x + CELL - p),
+            ]
+            vals = [_luminance(np.mean(board[yy:yy + p, xx:xx + p], axis=(0, 1))) for yy, xx in pts]
+            cells[r, c] = np.mean(vals)
     violations = 0
     for r in range(7):
         for c in range(8):
             if abs(cells[r, c] - cells[r + 1, c]) < 15:
                 violations += 1
+    for r in range(8):
+        for c in range(7):
+            if abs(cells[r, c] - cells[r, c + 1]) < 15:
+                violations += 1
     return violations <= 8
 
 
 def _interior_quad(image: np.ndarray) -> Optional[np.ndarray]:
-    """Detect the board interior square (the playable 8x8 area) via its non-green
-    extent and return its four corners, snapped to an exact TARGET_SIZE square."""
+    """Detect the board interior (the playable 8x8 area) via its non-green
+    extent and return its four corners. The full detected square is used (not
+    a fixed-size window) so boards with any cell size are warped with their
+    grid aligned."""
     b = image[:, :, 0].astype(np.int32)
     g = image[:, :, 1].astype(np.int32)
     r = image[:, :, 2].astype(np.int32)
     is_green = (g > r + 12) & (g > b + 12)
     non_green = (~is_green).astype(np.uint8)
-    non_green = cv2.erode(non_green, np.ones((3, 3), np.uint8), iterations=2)
-    n, labels, stats, cents = cv2.connectedComponentsWithStats(non_green, 8)
+    eroded = cv2.erode(non_green, np.ones((3, 3), np.uint8), iterations=2)
+    n, labels, stats, cents = cv2.connectedComponentsWithStats(eroded, 8)
     if n <= 1:
         return None
     big = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
-    x0 = int(stats[big, cv2.CC_STAT_LEFT])
-    y0 = int(stats[big, cv2.CC_STAT_TOP])
-    x1 = x0 + int(stats[big, cv2.CC_STAT_WIDTH])
-    y1 = y0 + int(stats[big, cv2.CC_STAT_HEIGHT])
+    # Recover the true board extent: grow the eroded component back by the
+    # erosion radius and keep only original non-green pixels, so the quad
+    # lands exactly on the board boundary instead of a shifted estimate.
+    grown = cv2.dilate((labels == big).astype(np.uint8), np.ones((3, 3), np.uint8), iterations=2)
+    ys, xs = np.where((grown > 0) & (non_green > 0))
+    if len(ys) < TARGET_SIZE * CELL:
+        return None
+    x0, x1 = int(xs.min()), int(xs.max()) + 1
+    y0, y1 = int(ys.min()), int(ys.max()) + 1
+    side = min(x1 - x0, y1 - y0)
+    if side < TARGET_SIZE // 2:
+        return None
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    half = TARGET_SIZE / 2
-    x0, x1 = int(round(cx - half)), int(round(cx + half))
-    y0, y1 = int(round(cy - half)), int(round(cy + half))
+    x0, x1 = int(round(cx - side / 2)), int(round(cx + side / 2))
+    y0, y1 = int(round(cy - side / 2)), int(round(cy + side / 2))
     if x0 < 0 or y0 < 0 or x1 > image.shape[1] or y1 > image.shape[0]:
         return None
     return np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
+
+
+def _largest_square_quad(image: np.ndarray) -> Optional[np.ndarray]:
+    """Fallback quad covering the largest centered square of the image,
+    used for tight edge-to-edge board screenshots with no green frame."""
+    h, w = image.shape[:2]
+    side = min(h, w)
+    if side < TARGET_SIZE // 2:
+        return None
+    x0, y0 = (w - side) // 2, (h - side) // 2
+    return np.float32([[x0, y0], [x0 + side, y0], [x0 + side, y0 + side], [x0, y0 + side]])
 
 
 def _warp_board(image: np.ndarray, quad: np.ndarray) -> np.ndarray:
@@ -115,15 +146,20 @@ def _find_board_contours(image: np.ndarray) -> Optional[np.ndarray]:
 
 
 def find_board(image: np.ndarray) -> Optional[np.ndarray]:
+    candidates = []
     quad = _interior_quad(image)
-    if quad is None:
-        board = _find_board_contours(image)
-        if board is None:
-            return None
-        if not _verify_board(board):
-            return None
-        return board
-    return _warp_board(image, quad)
+    if quad is not None:
+        candidates.append(_warp_board(image, quad))
+    square = _largest_square_quad(image)
+    if square is not None:
+        candidates.append(_warp_board(image, square))
+    contour = _find_board_contours(image)
+    if contour is not None:
+        candidates.append(contour)
+    for board in candidates:
+        if _verify_board(board):
+            return board
+    return candidates[0] if candidates else None
 
 
 PIECES_DIR = Path(__file__).resolve().parent / 'assets' / 'pieces'
@@ -173,6 +209,9 @@ def _extract_piece(cell: np.ndarray, margin: int = 3) -> Optional[np.ndarray]:
     h, w = cell.shape[:2]
     bg = np.median(cell.reshape(-1, 3), axis=0)
     mask = np.linalg.norm(cell.astype(np.float32) - bg, axis=2) > 25
+    # Remove thin boundary strips left by residual grid misalignment so the
+    # cropped silhouette matches the clean template despite ~1px warping error.
+    mask = cv2.erode(mask.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=1) > 0
     ys, xs = np.where(mask)
     if len(ys) < 20:
         return None

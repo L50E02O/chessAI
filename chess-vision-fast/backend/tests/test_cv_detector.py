@@ -41,3 +41,15 @@ def test_detect_returns_warped_board_image():
     result = _detect(START)
     assert result.board_image is not None
     assert result.board_image.size == (480, 480)
+
+
+def test_detect_starting_position_framed_large_cells():
+    # Regression: boards whose cells are larger than 60px (e.g. a 640x640
+    # chess.com screenshot with a visible frame) used to be warped from a
+    # misaligned centered 480px window, breaking piece classification.
+    detector = CVBoardDetector(None)
+    img = render_board(START, square=80, frame=16, page_margin=40)
+    result = detector.detect(img)
+    assert result.fen.startswith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
+    assert len(result.squares) == 32
+    assert result.confidence > 0.8
