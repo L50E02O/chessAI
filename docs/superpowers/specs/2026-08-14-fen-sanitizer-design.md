@@ -66,11 +66,13 @@ eligibility, so back-rank pawns are fixed before castling.
    deficit type (order R, N, B, Q; K only if that color's king is missing).
    Each replacement appends a warning. If a back-rank pawn remains with no
    deficit → unrecoverable (impossible position).
-3. **Fix castling.** Compare the declared castling field against
-   `compute_castling` (king present on e1/e8 + rook on a1/h1/a8/h8). Remove
-   invalid rights; warn when something was removed. A declared `-` is left as-is
-   even if pieces would allow rights (rights cannot be invented without move
-   history).
+3. **Fix castling.** If the input explicitly provided a castling field, compare
+   it against `compute_castling` (king present on e1/e8 + rook on a1/h1/a8/h8).
+   Remove invalid rights; warn when something was removed. A declared `-` is left
+   as-is even if pieces would allow rights (rights cannot be invented without
+   move history). If the input had NO castling field (e.g. board-only FEN padded
+   in step 1), the padded `KQkq` is replaced with `-` **silently** — no warning,
+   because nothing was declared to fix.
 4. **Final validation.** Rebuild the FEN and re-run `chess.Board`. Unrecoverable
    if: missing king for a side, more than one king of a color, more than 16
    pieces or more than 8 pawns of a color, remaining back-rank pawns, or illegal
@@ -122,7 +124,8 @@ New `backend/tests/test_fen_sanitizer.py`:
 - Pawn on e1 with white king present and no deficit → unrecoverable.
 - Two back-rank pawns with a single deficit → one restored, other → invalid.
 - Garbage string → unrecoverable + error message.
-- Board-only FEN (1 field) → normalized to 6 fields.
+- Board-only FEN (1 field) → normalized to 6 fields with castling `-` and **no**
+  spurious "removed castling" warning.
 - Ordering: back-rank pawn fixed before castling (restored rook → castling right
   recovered).
 
