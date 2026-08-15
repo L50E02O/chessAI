@@ -117,6 +117,7 @@ Pipfile.lock
 
 # Project specific
 captures/
+chess-vision-fast/backend/app/bin/
 *.png
 *.jpg
 !examples/*.jpg
