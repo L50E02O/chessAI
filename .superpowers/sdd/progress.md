@@ -177,3 +177,12 @@
 - Final counts: 43/43 backend tests, frontend build green.
 - Plan deviations (all controller-approved): T1 controller cleanup 2c35485 (.gitignore bin/ + delete untracked 114MB stockfish.exe that broke find_stockfish test); T4 test FEN kings-only -> '4k3/8/8/8/8/8/4P3/4K3' (mock bestmove e2e4 illegal -> EngineError hang); T4 fen_warnings added to best_move except branch (spec: every response carries the field).
 - Known follow-ups (Minor, not blocking): no API test asserting success-path fen_warnings or non-empty warnings; king-restoration + FILE_PIECE knight/bishop branches of back-rank heuristic untested; UNRECOVERABLE_MASK excludes STATUS_INVALID_EP_SQUARE/check flags (plan-mandated).
+
+## FINAL REVIEW FIX WAVE
+- Status: DONE; commit 896036f "fix: honor FEN side-to-move, wire orientation to detector, reject invalid en-passant FENs" (9 files, +110/-7); report .superpowers/sdd/fix-final-review-report.md
+- Fix 1 (turn): new pure helper resolve_active_color(fen, turn) in stockfish_service.py; analyze_position uses it so a black-to-move FEN with no explicit turn analyzes as black. 4 pure unit tests (no engine).
+- Fix 2 (orientation): /api/detect and /api/detect_and_move now pass the orientation query to CVBoardDetector.detect(image, orientation=None); front/back force w-bottom/w-top, auto/None uses _detect_orientation; w-top square names remapped via bbox-derived image cell (fixes latent overlay-arrow bug); final_orientation passed to matrix_to_fen + DetectionResult. 2 new tests (render white_top=True + orientation='back'/'front').
+- Fix 3 (en-passant): UNRECOVERABLE_MASK now includes STATUS_INVALID_EP_SQUARE (512); invalid ep FEN rejected, valid ep FEN control accepted. 2 new tests.
+- Fix 4 (fen_warnings): new API test test_detect_returns_fen_warnings_on_castling_prune proves the SUCCESS path surfaces a real warning (start position minus h1 rook -> K pruned). NOTE: passed on pre-fix code too — the success path already worked; the test now pins it.
+- Fix 5 (frontend): White/Black Turn toggle added to Engine Settings (same pattern as Depth buttons), wired to setTurn; npm run build SUCCESS.
+- Verification: backend 52/52 passed (43 + 9 new), frontend build SUCCESS (34 modules, 2.32s).
