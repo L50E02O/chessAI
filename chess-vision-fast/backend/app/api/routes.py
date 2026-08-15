@@ -11,6 +11,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from ..detector import DetectorFactory, SquareDetection
+from ..fen_sanitizer import FenSanitizeResult, INVALID_FEN_MESSAGE, sanitize_fen
 from ..overlay import draw_overlay
 from ..services import StockfishService
 from ..stockfish_engine import StockfishEngine
@@ -80,14 +81,27 @@ def detect(
             'squares': [],
             'confidence': result.confidence,
             'orientation': result.orientation if hasattr(result, 'orientation') else 'w-bottom',
+            'fen_warnings': [],
             'error': f'Low detection confidence ({result.confidence:.2f}); could not reliably detect the board.',
         }
+    sanitized = sanitize_fen(result.fen)
+    if not sanitized.valid:
+        return {
+            'fen': '',
+            'board_image_base64': result.board_image_base64,
+            'squares': [],
+            'confidence': result.confidence,
+            'orientation': result.orientation if hasattr(result, 'orientation') else 'w-bottom',
+            'fen_warnings': [],
+            'error': INVALID_FEN_MESSAGE,
+        }
     return {
-        'fen': result.fen,
+        'fen': sanitized.fen,
         'board_image_base64': result.board_image_base64,
         'squares': _squares_to_response(result.squares),
         'confidence': result.confidence,
         'orientation': result.orientation if hasattr(result, 'orientation') else 'w-bottom',
+        'fen_warnings': sanitized.warnings,
         'error': result.error,
     }
 
@@ -98,8 +112,18 @@ def best_move(
     settings: AppSettings = Depends(get_settings),
 ) -> Dict[str, Any]:
     try:
+        sanitized = sanitize_fen(payload.fen)
+        if not sanitized.valid:
+            return {
+                'uci': None, 'san': None,
+                'score': {'cp': None, 'mate': None},
+                'pv': [], 'evaluation_text': None,
+                'turn': None, 'depth': None, 'source': 'stockfish',
+                'fen_warnings': [],
+                'error': INVALID_FEN_MESSAGE,
+            }
         service = get_chess_service(settings)
-        result = service.analyze_position(payload.fen, turn=payload.turn, depth=payload.depth)
+        result = service.analyze_position(sanitized.fen, turn=payload.turn, depth=payload.depth)
         return {
             'uci': result['uci'],
             'san': result['san'],
@@ -109,6 +133,7 @@ def best_move(
             'turn': result['turn'],
             'depth': result['depth'],
             'source': result['source'],
+            'fen_warnings': sanitized.warnings,
         }
     except Exception as e:
         return {
@@ -116,6 +141,7 @@ def best_move(
             'score': {'cp': None, 'mate': None},
             'pv': [], 'evaluation_text': None,
             'turn': None, 'depth': None, 'source': 'stockfish',
+            'fen_warnings': [],
             'error': f'Error in analysis: {str(e)}',
         }
 
@@ -140,19 +166,31 @@ def detect_and_move(
             'score': {'cp': None, 'mate': None}, 'pv': [],
             'evaluation_text': None, 'overlay_image_base64': overlay_image_base64,
             'squares': squares, 'confidence': detection.confidence,
+            'fen_warnings': [],
             'error': detection.error or (
                 f'Low detection confidence ({detection.confidence:.2f}); could not reliably detect the board.'
             ),
         }
 
+    sanitized = sanitize_fen(detection.fen)
+    if not sanitized.valid:
+        return {
+            'fen': '', 'best_move': None, 'uci': None, 'san': None,
+            'score': {'cp': None, 'mate': None}, 'pv': [],
+            'evaluation_text': None, 'overlay_image_base64': overlay_image_base64,
+            'squares': squares, 'confidence': detection.confidence,
+            'fen_warnings': [],
+            'error': INVALID_FEN_MESSAGE,
+        }
+
     try:
         service = get_chess_service(settings)
-        result = service.analyze_position(detection.fen, turn=turn, depth=depth)
+        result = service.analyze_position(sanitized.fen, turn=turn, depth=depth)
         if detection.board_image is not None:
             overlay_png, overlay_coords = draw_overlay(detection.board_image, squares, result['uci'])
             overlay_image_base64 = overlay_png
         return {
-            'fen': detection.fen,
+            'fen': sanitized.fen,
             'best_move': result['uci'],
             'uci': result['uci'],
             'san': result['san'],
@@ -166,13 +204,15 @@ def detect_and_move(
             'orientation': detection.orientation if hasattr(detection, 'orientation') else 'w-bottom',
             'source': 'stockfish',
             'timestamp': datetime.utcnow().isoformat(),
+            'fen_warnings': sanitized.warnings,
         }
     except Exception as e:
         return {
-            'fen': detection.fen, 'best_move': None, 'uci': None, 'san': None,
+            'fen': sanitized.fen, 'best_move': None, 'uci': None, 'san': None,
             'score': {'cp': None, 'mate': None}, 'pv': [],
             'evaluation_text': None, 'overlay_image_base64': overlay_image_base64,
             'squares': squares, 'confidence': detection.confidence,
+            'fen_warnings': sanitized.warnings,
             'error': f'Error in analysis: {str(e)}',
         }
 

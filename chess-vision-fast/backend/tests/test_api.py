@@ -64,3 +64,25 @@ def test_context_endpoint():
     response = client.get('/api/context')
     assert response.status_code == 200
     assert response.json()['total_moves'] == 0
+
+
+from backend.app.fen_sanitizer import INVALID_FEN_MESSAGE
+
+
+def test_best_move_invalid_fen_returns_clear_error():
+    routes._chess_service = StockfishService(StockfishEngine(command=MOCK))
+    response = client.post('/api/best_move', json={'fen': 'not a fen at all'})
+    assert response.status_code == 200
+    data = response.json()
+    assert data['uci'] is None
+    assert data['error'] == INVALID_FEN_MESSAGE
+
+
+def test_detect_and_move_includes_fen_warnings():
+    routes._chess_service = StockfishService(StockfishEngine(command=MOCK))
+    files = {'file': ('board.png', _png_bytes('4k3/8/8/8/8/8/4P3/4K3 w - - 0 1'), 'image/png')}
+    response = client.post('/api/detect_and_move', files=files)
+    assert response.status_code == 200
+    data = response.json()
+    assert 'fen_warnings' in data
+    assert isinstance(data['fen_warnings'], list)
