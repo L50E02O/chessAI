@@ -53,6 +53,50 @@ UNRECOVERABLE_MASK = (
 )
 
 
+def _counts_for(board: chess.Board, color: bool) -> dict:
+    counts = {p: 0 for p in 'RNBQK'}
+    for piece in board.piece_map().values():
+        if piece.color == color and piece.piece_type != chess.PAWN:
+            counts[piece.symbol().upper()] += 1
+    return counts
+
+
+def _backrank_pawns(board: chess.Board) -> list:
+    return sorted(
+        chess.square_name(sq)
+        for sq, piece in board.piece_map().items()
+        if piece.piece_type == chess.PAWN and chess.square_rank(sq) in (0, 7)
+    )
+
+
+def _fix_backrank_pawns(board: chess.Board, warnings: list) -> bool:
+    for sq_name in _backrank_pawns(board):
+        sq = chess.parse_square(sq_name)
+        color = board.piece_at(sq).color
+        counts = _counts_for(board, color)
+        deficits = [t for t in 'RNBQK' if counts[t] < INITIAL_COUNTS[t]]
+        expected = FILE_PIECE[sq_name[0]]
+
+        candidates = []
+        if expected in deficits:
+            candidates.append(expected)
+        if expected != 'K' and 'K' in deficits and 'K' not in candidates:
+            candidates.append('K')
+        for t in FIX_PRIORITY:
+            if t in deficits and t not in candidates:
+                candidates.append(t)
+
+        if not candidates:
+            return False
+
+        chosen = candidates[0]
+        symbol = chosen.lower() if color == chess.BLACK else chosen
+        board.set_piece_at(sq, chess.Piece.from_symbol(symbol))
+        display = chosen.lower() if color == chess.BLACK else chosen
+        warnings.append(f'Back-rank pawn on {sq_name} replaced with {display}.')
+    return True
+
+
 def _fix_castling(parts: list, had_castling: bool, warnings: list) -> None:
     if not had_castling:
         parts[2] = '-'
@@ -85,11 +129,12 @@ def sanitize_fen(fen: str) -> FenSanitizeResult:
     except ValueError:
         return FenSanitizeResult(fen='', valid=False, error=INVALID_FEN_MESSAGE)
 
+    if not _fix_backrank_pawns(board, warnings):
+        return FenSanitizeResult(fen='', valid=False, error=INVALID_FEN_MESSAGE)
+    parts[0] = board.fen().split()[0]
+
     _fix_castling(parts, had_castling, warnings)
 
-    # Rebuild from the updated parts: the castling fix only mutates the parts
-    # list, and the board created above still carries the declared (invalid)
-    # castling rights, which would wrongly flag STATUS_BAD_CASTLING_RIGHTS.
     if chess.Board(' '.join(parts)).status() & UNRECOVERABLE_MASK:
         return FenSanitizeResult(fen='', valid=False, error=INVALID_FEN_MESSAGE)
 
