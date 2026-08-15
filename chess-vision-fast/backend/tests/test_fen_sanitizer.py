@@ -86,6 +86,20 @@ def test_two_backrank_pawns_single_deficit_unrecoverable():
     assert result.fen == ''
 
 
+def test_invalid_en_passant_square_unrecoverable():
+    result = sanitize_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e3 0 1')
+    assert result.valid is False
+    assert result.fen == ''
+    assert result.error == INVALID_FEN_MESSAGE
+
+
+def test_valid_en_passant_square_accepted():
+    result = sanitize_fen('rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3')
+    assert result.valid is True
+    assert result.fen == 'rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3'
+    assert result.warnings == []
+
+
 def test_garbage_fen_unrecoverable():
     result = sanitize_fen('not a fen at all')
     assert result.valid is False

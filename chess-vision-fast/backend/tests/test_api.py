@@ -78,6 +78,16 @@ def test_best_move_invalid_fen_returns_clear_error():
     assert data['error'] == INVALID_FEN_MESSAGE
 
 
+def test_detect_returns_fen_warnings_on_castling_prune():
+    routes._chess_service = StockfishService(StockfishEngine(command=MOCK))
+    files = {'file': ('board.png', _png_bytes('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBN1 w KQkq - 0 1'), 'image/png')}
+    response = client.post('/api/detect', files=files)
+    assert response.status_code == 200
+    data = response.json()
+    assert data['fen_warnings']
+    assert 'K' not in data['fen'].split()[2]  # K pruned (h1 empty)
+
+
 def test_detect_and_move_includes_fen_warnings():
     routes._chess_service = StockfishService(StockfishEngine(command=MOCK))
     files = {'file': ('board.png', _png_bytes('4k3/8/8/8/8/8/4P3/4K3 w - - 0 1'), 'image/png')}

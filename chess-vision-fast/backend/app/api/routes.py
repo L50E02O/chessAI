@@ -73,7 +73,7 @@ def detect(
     settings: AppSettings = Depends(get_settings),
 ) -> Dict[str, Any]:
     detector = DetectorFactory(settings).create()
-    result = detector.detect(_open_image(_validate_file(file, settings)))
+    result = detector.detect(_open_image(_validate_file(file, settings)), orientation)
     if result.confidence < settings.detection_confidence_threshold:
         return {
             'fen': '',
@@ -155,7 +155,7 @@ def detect_and_move(
     settings: AppSettings = Depends(get_settings),
 ) -> Dict[str, Any]:
     detector = DetectorFactory(settings).create()
-    detection = detector.detect(_open_image(_validate_file(file, settings)))
+    detection = detector.detect(_open_image(_validate_file(file, settings)), orientation)
     squares = _squares_to_response(detection.squares)
     overlay_image_base64 = detection.board_image_base64
     overlay_coords: List[float] = []

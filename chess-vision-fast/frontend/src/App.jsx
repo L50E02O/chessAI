@@ -238,6 +238,24 @@ export default function App() {
                     >
                       {opt.label}
                     </button>
+                    ))}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-slate-400">Turn</span>
+                  {[
+                    { value: 'w', label: 'White' },
+                    { value: 'b', label: 'Black' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setTurn(opt.value)}
+                      disabled={isLoading}
+                      className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
+                        turn === opt.value ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {opt.label}
+                    </button>
                   ))}
                 </div>
               </div>

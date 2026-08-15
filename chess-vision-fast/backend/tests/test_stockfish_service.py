@@ -8,6 +8,7 @@ from backend.app.services.stockfish_service import (
     compute_castling,
     en_passant_from_history,
     evaluation_text,
+    resolve_active_color,
 )
 from backend.app.stockfish_engine import StockfishEngine
 
@@ -48,6 +49,23 @@ def test_service_analyze_position_builds_context():
     assert result['evaluation_text'] == 'Balanced position (+0.6).'
     assert result['source'] == 'stockfish'
     assert service.get_context()['total_moves'] == 1
+
+
+def test_resolve_active_color_uses_fen_side_when_turn_none():
+    assert resolve_active_color('4k3/8/8/8/8/8/8/4K3 b - - 0 1') == 'b'
+    assert resolve_active_color('4k3/8/8/8/8/8/8/4K3 w - - 0 1') == 'w'
+
+
+def test_resolve_active_color_explicit_turn_wins():
+    assert resolve_active_color('4k3/8/8/8/8/8/8/4K3 b - - 0 1', turn='w') == 'w'
+
+
+def test_resolve_active_color_one_field_fen_defaults_white():
+    assert resolve_active_color('4k3/8/8/8/8/8/8/4K3') == 'w'
+
+
+def test_resolve_active_color_invalid_turn_ignored():
+    assert resolve_active_color('4k3/8/8/8/8/8/8/4K3 b - - 0 1', turn='x') == 'b'
 
 
 def test_service_clear_context():

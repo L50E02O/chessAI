@@ -324,7 +324,9 @@ def _detect_orientation(squares: list) -> str:
 
 
 class CVBoardDetector(BaseDetector):
-    def detect(self, image: Image.Image) -> DetectionResult:
+    def detect(self, image: Image.Image, orientation=None) -> DetectionResult:
+        """Detect the board and pieces in an image.
+        orientation: 'auto' | 'front' | 'back' | None"""
         img = cv2.cvtColor(np.array(image.convert('RGB')), cv2.COLOR_RGB2BGR)
         board = find_board(img)
         if board is None:
@@ -361,8 +363,20 @@ class CVBoardDetector(BaseDetector):
                 f'Could not classify pieces on squares: {", ".join(unknown)}. Try flipping the board or using a cleaner screenshot.',
             )
 
-        orientation = _detect_orientation(squares)
-        fen = matrix_to_fen(matrix, active_color='w', orientation=orientation)
+        if orientation == 'front':
+            final_orientation = 'w-bottom'
+        elif orientation == 'back':
+            final_orientation = 'w-top'
+        else:  # 'auto' or None
+            final_orientation = _detect_orientation(squares)
+
+        if final_orientation == 'w-top':
+            for s in squares:
+                r = int(s.bbox[1] // CELL)
+                c = int(s.bbox[0] // CELL)
+                s.square = _square_at(7 - r, 7 - c)
+
+        fen = matrix_to_fen(matrix, active_color='w', orientation=final_orientation)
         try:
             chess.Board(fen)
         except ValueError:
@@ -375,7 +389,7 @@ class CVBoardDetector(BaseDetector):
             squares=squares,
             confidence=confidence_from_squares(squares),
             board_image=board_pil,
-            orientation=orientation,
+            orientation=final_orientation,
         )
 
     def _error_result(self, image: Image.Image, message: str) -> DetectionResult:

@@ -10,6 +10,15 @@ from ..stockfish_engine import StockfishEngine
 logger = logging.getLogger(__name__)
 
 
+def resolve_active_color(fen: str, turn: Optional[str] = None) -> str:
+    if turn in ('w', 'b'):
+        return turn
+    parts = fen.split()
+    if len(parts) > 1 and parts[1] in ('w', 'b'):
+        return parts[1]
+    return 'w'
+
+
 def en_passant_from_history(move_history_uci: list) -> str:
     if not move_history_uci:
         return '-'
@@ -45,7 +54,7 @@ class StockfishService:
 
     def analyze_position(self, fen: str, turn: Optional[str] = None, depth: Optional[int] = None) -> dict:
         board = chess.Board(fen.split()[0])
-        active = turn if turn in ('w', 'b') else 'w'
+        active = resolve_active_color(fen, turn)
         castling = compute_castling(fen.split()[0])
         ep = en_passant_from_history(self.move_history_uci)
         parts = board.fen().split()

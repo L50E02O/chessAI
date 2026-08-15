@@ -55,6 +55,25 @@ def test_detect_starting_position_framed_large_cells():
     assert result.confidence > 0.8
 
 
+def test_detect_starting_position_back_orientation_w_top():
+    detector = CVBoardDetector(None)
+    img = render_board(START, white_top=True)
+    result = detector.detect(img, orientation='back')
+    assert result.fen.startswith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
+    assert result.orientation == 'w-top'
+    a1_entry = next(s for s in result.squares if s.square == 'a1')
+    assert a1_entry is not None
+    assert a1_entry.piece == 'R'
+
+
+def test_detect_starting_position_front_orientation_w_bottom():
+    detector = CVBoardDetector(None)
+    img = render_board(START)
+    result = detector.detect(img, orientation='front')
+    assert result.fen.startswith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
+    assert result.orientation == 'w-bottom'
+
+
 def test_detect_green_theme_board_with_highlighted_empty_square():
     # Regression: chess.com green theme (dark squares are green, no frame) plus
     # a last-move highlight on an empty square used to fail board detection and
