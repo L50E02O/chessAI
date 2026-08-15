@@ -14,6 +14,7 @@ export default function App() {
   const [score, setScore] = useState(null)
   const [pv, setPv] = useState([])
   const [confidence, setConfidence] = useState(null)
+  const [fenWarnings, setFenWarnings] = useState([])
   const [moveHistory, setMoveHistory] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -50,6 +51,7 @@ export default function App() {
     setScore(data.score || null)
     setPv(data.pv || [])
     setConfidence(data.confidence)
+    setFenWarnings(data.fen_warnings || [])
     if (data.orientation && data.orientation !== 'w-bottom') {
       setOrientation(data.orientation === 'w-top' ? 'back' : 'auto')
     }
@@ -85,6 +87,7 @@ export default function App() {
       setEvaluationText(response.evaluation_text || '')
       setScore(response.score || null)
       setPv(response.pv || [])
+      setFenWarnings(response.fen_warnings || [])
       if (response.error) {
         setError(response.error)
         setStatus(`Error: ${response.error}`)
@@ -123,6 +126,7 @@ export default function App() {
       setEvaluationText('')
       setScore(null)
       setPv([])
+      setFenWarnings([])
       setOverlayImage(null)
       setMoveHistory([])
       setError(null)
@@ -287,6 +291,7 @@ export default function App() {
                   score={score}
                   pv={pv}
                   error={error}
+                  fenWarnings={fenWarnings}
                 />
               </section>
             </div>

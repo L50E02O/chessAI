@@ -14,6 +14,7 @@ export default function BoardPreview({
   score,
   pv,
   error,
+  fenWarnings,
 }) {
   const whitePct = score ? winPercent(score.cp, score.mate) : null
   return (
@@ -22,6 +23,15 @@ export default function BoardPreview({
         <div className="rounded border border-red-500/30 bg-red-500/10 p-2">
           <p className="text-xs font-semibold text-red-400 mb-1">Error</p>
           <p className="text-xs text-red-300">{error}</p>
+        </div>
+      )}
+
+      {fenWarnings && fenWarnings.length > 0 && (
+        <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2">
+          <p className="text-xs font-semibold text-amber-400 mb-1">FEN corrected</p>
+          {fenWarnings.map((warning, index) => (
+            <p key={index} className="text-xs text-amber-300">{warning}</p>
+          ))}
         </div>
       )}
 
