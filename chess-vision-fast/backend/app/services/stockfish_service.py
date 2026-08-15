@@ -4,25 +4,10 @@ from typing import Optional
 
 import chess
 
+from ..fen_sanitizer import compute_castling
 from ..stockfish_engine import StockfishEngine
 
 logger = logging.getLogger(__name__)
-
-
-def compute_castling(board_part: str) -> str:
-    board = chess.Board(board_part)
-    rights = []
-    if board.piece_at(chess.parse_square('e1')) == chess.Piece(chess.KING, chess.WHITE):
-        if board.piece_at(chess.parse_square('h1')) == chess.Piece(chess.ROOK, chess.WHITE):
-            rights.append('K')
-        if board.piece_at(chess.parse_square('a1')) == chess.Piece(chess.ROOK, chess.WHITE):
-            rights.append('Q')
-    if board.piece_at(chess.parse_square('e8')) == chess.Piece(chess.KING, chess.BLACK):
-        if board.piece_at(chess.parse_square('h8')) == chess.Piece(chess.ROOK, chess.BLACK):
-            rights.append('k')
-        if board.piece_at(chess.parse_square('a8')) == chess.Piece(chess.ROOK, chess.BLACK):
-            rights.append('q')
-    return ''.join(rights) or '-'
 
 
 def en_passant_from_history(move_history_uci: list) -> str:
