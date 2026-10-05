@@ -128,20 +128,24 @@ def best_move(
             'uci': result['uci'],
             'san': result['san'],
             'score': result['score'],
+            'score_text': result.get('score_text', '+0.00'),
             'pv': result['pv'],
             'evaluation_text': result['evaluation_text'],
             'turn': result['turn'],
             'depth': result['depth'],
             'source': result['source'],
             'fen_warnings': sanitized.warnings,
+            'lines': result.get('lines', []),
         }
     except Exception as e:
         return {
             'uci': None, 'san': None,
             'score': {'cp': None, 'mate': None},
+            'score_text': None,
             'pv': [], 'evaluation_text': None,
             'turn': None, 'depth': None, 'source': 'stockfish',
             'fen_warnings': [],
+            'lines': [],
             'error': f'Error in analysis: {str(e)}',
         }
 
@@ -167,6 +171,7 @@ def detect_and_move(
             'evaluation_text': None, 'overlay_image_base64': overlay_image_base64,
             'squares': squares, 'confidence': detection.confidence,
             'fen_warnings': [],
+            'lines': [],
             'error': detection.error or (
                 f'Low detection confidence ({detection.confidence:.2f}); could not reliably detect the board.'
             ),
@@ -180,6 +185,7 @@ def detect_and_move(
             'evaluation_text': None, 'overlay_image_base64': overlay_image_base64,
             'squares': squares, 'confidence': detection.confidence,
             'fen_warnings': [],
+            'lines': [],
             'error': INVALID_FEN_MESSAGE,
         }
 
@@ -195,6 +201,7 @@ def detect_and_move(
             'uci': result['uci'],
             'san': result['san'],
             'score': result['score'],
+            'score_text': result.get('score_text', '+0.00'),
             'pv': result['pv'],
             'evaluation_text': result['evaluation_text'],
             'overlay_image_base64': overlay_image_base64,
@@ -205,6 +212,7 @@ def detect_and_move(
             'source': 'stockfish',
             'timestamp': datetime.utcnow().isoformat(),
             'fen_warnings': sanitized.warnings,
+            'lines': result.get('lines', []),
         }
     except Exception as e:
         return {
@@ -213,6 +221,8 @@ def detect_and_move(
             'evaluation_text': None, 'overlay_image_base64': overlay_image_base64,
             'squares': squares, 'confidence': detection.confidence,
             'fen_warnings': sanitized.warnings,
+            'score_text': None,
+            'lines': [],
             'error': f'Error in analysis: {str(e)}',
         }
 
@@ -232,3 +242,12 @@ def get_context(settings: AppSettings = Depends(get_settings)) -> Dict[str, Any]
         return get_chess_service(settings).get_context()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Error getting context: {str(e)}')
+
+
+@router.get('/api/engine')
+def engine_info(settings: AppSettings = Depends(get_settings)) -> Dict[str, Any]:
+    engine = get_chess_service(settings).engine
+    try:
+        return {'name': engine.engine_name(), 'depth': engine.depth}
+    except Exception as e:
+        return {'name': None, 'depth': engine.depth, 'error': f'Engine unavailable: {str(e)}'}

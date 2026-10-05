@@ -8,6 +8,8 @@ from backend.app.services.stockfish_service import (
     compute_castling,
     en_passant_from_history,
     evaluation_text,
+    format_pv_line,
+    format_score,
     resolve_active_color,
 )
 from backend.app.stockfish_engine import StockfishEngine
@@ -66,6 +68,35 @@ def test_resolve_active_color_one_field_fen_defaults_white():
 
 def test_resolve_active_color_invalid_turn_ignored():
     assert resolve_active_color('4k3/8/8/8/8/8/8/4K3 b - - 0 1', turn='x') == 'b'
+
+
+START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+
+def test_format_score():
+    assert format_score(57, None) == '+0.57'
+    assert format_score(-120, None) == '-1.20'
+    assert format_score(None, 3) == 'M+3'
+    assert format_score(None, -2) == 'M-2'
+    assert format_score(None, None) == '0.00'
+
+
+def test_format_pv_line_numbers_moves_from_fen():
+    assert format_pv_line(START_FEN, ['e4', 'e5', 'Nf3']) == '1... e5 2. Nf3'
+    assert format_pv_line(START_FEN, ['e4']) == ''
+    assert format_pv_line(START_FEN, []) == ''
+
+
+def test_service_returns_formatted_lines():
+    service = StockfishService(StockfishEngine(command=MOCK))
+    result = service.analyze_position(START_FEN)
+    assert result['score_text'] == '+0.57'
+    assert [line['move'] for line in result['lines']] == ['e4', 'd4', 'Nf3']
+    first = result['lines'][0]
+    assert first['score_text'] == '+0.57'
+    assert first['continuation'] == '1... e5'
+    assert first['score'] == {'cp': 57, 'mate': None}
+    assert first['nps'] is None
 
 
 def test_service_clear_context():

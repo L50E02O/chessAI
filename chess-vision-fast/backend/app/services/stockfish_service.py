@@ -45,6 +45,40 @@ def evaluation_text(score_cp, score_mate) -> str:
     return f'Black has a decisive advantage ({score_cp / 100:+.1f}).'
 
 
+def format_score(cp, mate) -> str:
+    if mate is not None:
+        return f"M{mate:+d}" if mate != 0 else "#"
+    if cp is not None:
+        return f"{cp/100:+.2f}"
+    return "0.00"
+
+
+def format_pv_line(fen: str, pv_list: list) -> str:
+    if not pv_list or len(pv_list) <= 1:
+        return ""
+    b = chess.Board(fen)
+    # push first move
+    try:
+        b.push_san(pv_list[0])
+    except Exception:
+        pass
+    tokens = []
+    for i, san in enumerate(pv_list[1:]):
+        ply = b.ply()
+        move_num = (ply // 2) + 1
+        is_white = (ply % 2 == 0)
+        if is_white:
+            tokens.append(f"{move_num}. {san}")
+        else:
+            prefix = f"{move_num}... " if i == 0 else ""
+            tokens.append(f"{prefix}{san}")
+        try:
+            b.push_san(san)
+        except Exception:
+            pass
+    return " ".join(tokens)
+
+
 class StockfishService:
     def __init__(self, engine: StockfishEngine) -> None:
         self.engine = engine
@@ -63,24 +97,47 @@ class StockfishService:
         parts[3] = ep
         complete = ' '.join(parts)
 
-        result = self.engine.analyze_position(complete, depth=depth)
+        result = self.engine.analyze_position(complete, depth=depth, multipv=3)
 
         b = chess.Board(complete)
-        move = chess.Move.from_uci(result['uci'])
-        san = b.san(move)
-        self.move_history_uci.append(result['uci'])
-        self.move_history_san.append(san)
+        san = None
+        if result.get('uci'):
+            try:
+                move = chess.Move.from_uci(result['uci'])
+                san = b.san(move)
+                self.move_history_uci.append(result['uci'])
+                self.move_history_san.append(san)
+            except Exception:
+                san = result['uci']
         self.current_fen = complete
+
+        formatted_lines = []
+        for line in result.get('lines', []):
+            score_txt = format_score(line['score_cp'], line['score_mate'])
+            cont = format_pv_line(complete, line['pv'])
+            formatted_lines.append({
+                'rank': line['rank'],
+                'move': line['san'] or line['uci'],
+                'uci': line['uci'],
+                'score_text': score_txt,
+                'depth': line['depth'],
+                'nps': line['nps'],
+                'continuation': cont,
+                'pv': line['pv'],
+                'score': {'cp': line['score_cp'], 'mate': line['score_mate']},
+            })
 
         return {
             'uci': result['uci'],
             'san': san,
             'score': {'cp': result['score_cp'], 'mate': result['score_mate']},
+            'score_text': format_score(result['score_cp'], result['score_mate']),
             'pv': result['pv'],
             'evaluation_text': evaluation_text(result['score_cp'], result['score_mate']),
             'turn': active,
             'depth': result['depth'],
             'source': 'stockfish',
+            'lines': formatted_lines,
         }
 
     def get_context(self) -> dict:

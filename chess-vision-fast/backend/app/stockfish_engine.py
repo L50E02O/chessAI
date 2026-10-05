@@ -1,7 +1,6 @@
 """Stockfish binary discovery, download, and UCI analysis."""
 import logging
 import os
-import subprocess
 import sys
 import urllib.request
 import zipfile
@@ -13,7 +12,7 @@ import chess.engine
 
 logger = logging.getLogger(__name__)
 
-STOCKFISH_DOWNLOAD_URL = 'https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-windows-x86-64-avx2.zip'
+STOCKFISH_DOWNLOAD_URL = 'https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-windows-x86-64-universal.zip'
 BIN_DIR = Path(__file__).resolve().parent / 'bin'
 
 COMMON_PATHS = [
@@ -75,6 +74,15 @@ def download_and_extract_stockfish() -> Optional[str]:
             pass
 
 
+def format_nps(nps: Optional[int]) -> Optional[str]:
+    """Human-readable nodes per second, or None when the engine did not report it."""
+    if not nps:
+        return None
+    if nps >= 1_000_000:
+        return f'{nps / 1_000_000:.1f}M nps'
+    return f'{round(nps / 1000)}k nps'
+
+
 class StockfishEngine:
     def __init__(self, path: Optional[str] = None, depth: int = 15,
                  auto_download: bool = True, command: Optional[list] = None) -> None:
@@ -102,29 +110,65 @@ class StockfishEngine:
             return self._command
         return [self.ensure_available()]
 
-    def analyze_position(self, fen: str, depth: Optional[int] = None) -> dict:
+    def engine_name(self) -> Optional[str]:
+        """Return the UCI `id name` reported by the engine (e.g. 'Stockfish 17')."""
+        engine = chess.engine.SimpleEngine.popen_uci(self._command_list())
+        try:
+            return engine.id.get('name')
+        finally:
+            engine.quit()
+
+    def analyze_position(self, fen: str, depth: Optional[int] = None, multipv: int = 3) -> dict:
         board = chess.Board(fen)
         engine = chess.engine.SimpleEngine.popen_uci(self._command_list())
         try:
             limit = chess.engine.Limit(depth=depth or self.depth)
-            info = engine.analyse(board, limit=limit)
-            white_score = info['score'].white()
-            if white_score.is_mate():
-                score_cp, score_mate = None, white_score.mate()
-            else:
-                score_cp, score_mate = white_score.cp, None
-            pv = []
-            walk = chess.Board(fen)
-            for move in info.get('pv', [])[:6]:
-                pv.append(walk.san(move))
-                walk.push(move)
+            # multipv analysis
+            infos = engine.analyse(board, limit=limit, multipv=multipv)
+            if not isinstance(infos, list):
+                infos = [infos]
+
+            lines = []
+            for i, info in enumerate(infos):
+                if 'score' not in info:
+                    continue
+                score = info['score'].white()
+                if score.is_mate():
+                    score_cp, score_mate = None, score.mate()
+                else:
+                    score_cp, score_mate = score.cp, None
+
+                pv = []
+                walk = chess.Board(fen)
+                for move in info.get('pv', [])[:8]:
+                    pv.append(walk.san(move))
+                    walk.push(move)
+
+                first_uci = info['pv'][0].uci() if info.get('pv') else None
+                first_san = pv[0] if pv else None
+
+                lines.append({
+                    'rank': i + 1,
+                    'uci': first_uci,
+                    'san': first_san,
+                    'score_cp': score_cp,
+                    'score_mate': score_mate,
+                    'pv': pv,
+                    'depth': info.get('depth', depth or self.depth),
+                    'nps': format_nps(info.get('nps')),
+                })
+
+            top = lines[0] if lines else {
+                'uci': None, 'score_cp': None, 'score_mate': None, 'pv': [],
+            }
             return {
-                'uci': info['pv'][0].uci() if info.get('pv') else None,
-                'score_cp': score_cp,
-                'score_mate': score_mate,
-                'pv': pv,
+                'uci': top['uci'],
+                'score_cp': top['score_cp'],
+                'score_mate': top['score_mate'],
+                'pv': top['pv'],
                 'depth': depth or self.depth,
                 'source': 'stockfish',
+                'lines': lines,
             }
         finally:
             engine.quit()

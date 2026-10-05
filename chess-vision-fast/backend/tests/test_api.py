@@ -44,6 +44,24 @@ def test_best_move_endpoint():
     assert data['uci'] == 'e2e4'
     assert data['san'] == 'e4'
     assert data['source'] == 'stockfish'
+    assert data['score_text'] == '+0.57'
+    assert [line['uci'] for line in data['lines']] == ['e2e4', 'd2d4', 'g1f3']
+
+
+def test_engine_endpoint_reports_engine_name():
+    routes._chess_service = StockfishService(StockfishEngine(command=MOCK, depth=12))
+    response = client.get('/api/engine')
+    assert response.status_code == 200
+    assert response.json() == {'name': 'MockEngine 1.0', 'depth': 12}
+
+
+def test_engine_endpoint_reports_error_when_engine_missing():
+    routes._chess_service = StockfishService(
+        StockfishEngine(command=[sys.executable, str(Path(__file__).resolve().parent / 'nope.py')])
+    )
+    data = client.get('/api/engine').json()
+    assert data['name'] is None
+    assert data['error']
 
 
 def test_detect_and_move_endpoint():
