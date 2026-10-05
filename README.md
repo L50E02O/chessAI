@@ -12,6 +12,8 @@ Full-stack solution that detects a chess.com board from a screenshot using class
 - **Multiple Upload Methods**: Drag and drop, file browser, or paste with Ctrl+V
 - **100% Local**: No API keys and no cloud dependencies
 
+> **Fair Play Notice:** Chess Vision Fast is designed purely as an analysis and study tool for offline positions, PGNs of finished games, and static captures. Any form of automatic screen capture or live reading of ongoing games on platforms like chess.com is out of scope and explicitly against fair play / anti-cheating policies. Please respect fair play guidelines.
+
 ## Structure
 
 ```
@@ -90,8 +92,9 @@ python run_frontend.py
 
 ## API Endpoints
 
+- `GET /api/engine`: Returns information about the running engine (e.g., `{"name": "Stockfish 16.1", "depth": 15}`)
 - `POST /api/detect`: Detects the board position from an image and returns a FEN
-- `POST /api/detect_and_move`: Detects the board and returns analysis in a single call
+- `POST /api/detect_and_move`: Detects the board and returns analysis in a single call (returns `lines` and `score_text`)
 - `POST /api/best_move`: Returns the best move for a given FEN
 - `POST /api/clear_context`: Clears the context of the current game
 - `GET /api/context`: Returns the current game context / move history
@@ -144,10 +147,18 @@ The app exposes:
 
 ## Tests
 
+**Backend tests:**
 From `chess-vision-fast/backend/` run:
 
 ```bash
-python -m pytest tests/
+python -m pytest tests/ -q
+```
+
+**Frontend tests:**
+From `chess-vision-fast/frontend/` run:
+
+```bash
+npm run test
 ```
 
 ## Recent Changes

@@ -60,3 +60,10 @@ export function getContext(signal) {
     signal,
   }).then(_jsonResponse)
 }
+
+export function getEngine(signal) {
+  return fetch(`${API_BASE}/api/engine`, {
+    method: 'GET',
+    signal,
+  }).then(_jsonResponse)
+}
